@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: Mint A/B Testing
+Plugin Name: Mint A/B Theme Testing for WordPress
 Plugin URI: http://gabrielkoen.com/
 Description: Generates a A/B Testing on the fly.
 Version: 0.9

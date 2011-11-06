@@ -171,6 +171,68 @@ class Mint_AB_Testing {
 	 * @version 0.9 2011-11-05 Gabriel Koen
 	 */
 	public function theme_redirect() {
+		$desktop_domain_parts = explode('.', parse_url(WP_SITEURL, PHP_URL_HOST));
+		$tld = array_pop($desktop_domain_parts);
+		$sld = array_pop($desktop_domain_parts);
+		$desktop_domain = $sld . '.' . $tld;
+
+		// Create the redirect url -- replace www. with m.
+		$redirect_url = str_replace('www.', 'm.', rtrim(home_url(), '/')) . $_SERVER['REQUEST_URI'];
+
+		?><script type="text/javascript">
+		detect_theme_useragent();
+		function detect_theme_useragent() {
+			var theme_cookie_name = "mint_alternate_theme";
+			var theme_cookie_value = "";
+
+			if (document.cookie.length > 0) {
+				cookie_start = document.cookie.indexOf(theme_cookie_name + "=");
+				if (cookie_start != -1) {
+					cookie_start = cookie_start + theme_cookie_name.length + 1;
+					cookie_end = document.cookie.indexOf(";", cookie_start);
+					if (cookie_end == -1) {
+						cookie_end = document.cookie.length;
+					}
+					theme_cookie_value = unescape(document.cookie.substring(cookie_start, cookie_end));
+				}
+			}
+
+			if ( "1" == theme_cookie_value ) {
+				window.parent.location.replace("<?php echo $redirect_url; ?>");
+				return;
+			} else if ( "0" == theme_cookie_value ) {
+				// Will not redirect, cookie already set
+				//console.log("Cookie == 0, will not redirect");
+				return;
+			}
+
+			// Cookie not found
+			var theme_user_agents = ["<?php echo implode('","', $w3_theme->groups['theme']['agents']); ?>"];
+			var current_user_agent = navigator.userAgent.toLowerCase();
+			for (i = 0; i < theme_user_agents.length; i++) {
+				var regex = new RegExp(theme_user_agents[i], 'gi');
+				if ( current_user_agent.match(regex) ) {
+					// Set is_theme cookie
+					var exp_date=new Date();
+					exp_date.setDate(exp_date.getDate() + 365);
+					document.cookie = theme_cookie_name + "=" + escape(1) + ";expires=<?php echo date(DATE_COOKIE, mktime(0, 0, 0, date("n"), date("t"), date("Y")+1)); ?>";
+
+					// Redirect to theme
+					//console.log("Cookie set to 1, will redirect");
+					window.parent.location.replace("<?php echo $redirect_url; ?>");
+					return;
+				}
+			}
+
+			// Set is_theme=0 cookie
+			var exp_date=new Date();
+			exp_date.setDate(exp_date.getDate() + 365);
+			document.cookie = theme_cookie_name + "=" + escape(0) + ";expires=<?php echo date(DATE_COOKIE, mktime(0, 0, 0, date("n"), date("t"), date("Y")+1)); ?>";
+			//console.log("Cookie set to 0, will not redirect");
+			return;
+		}
+		</script><?php
+
 	}
 
 }
