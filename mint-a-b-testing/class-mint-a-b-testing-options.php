@@ -160,11 +160,6 @@ class Mint_AB_Testing_Options
 	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
 	public function settings_section_description_main() {
-		$previous_endpoints = self::get_option('used_endpoints');
-		var_dump($previous_endpoints);
-		if ( !empty($previous_endpoints) ) {
-			printf( __( 'The following endpoints have been used before: %s', self::$text_domain ), implode(', ', $previous_endpoints) );
-		}
 	}
 
 	/**
