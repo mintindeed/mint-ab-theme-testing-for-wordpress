@@ -2,12 +2,15 @@
 /**
  * Handles the generation of the A/B Testing
  *
- * @since 0.9 2011-11-05 Gabriel Koen
- * @version 0.9 2011-06-27 Satyanarayan Verma
+ * @since 0.9.0.0 2011-11-05 Gabriel Koen
+ * @version 0.9.0.1 2011-11-13 Gabriel Koen
  */
 class Mint_AB_Testing {
 	/**
 	 *
+     *
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 *
 	 * @var null|string
 	 */
@@ -15,6 +18,9 @@ class Mint_AB_Testing {
 
 	/**
 	 *
+     *
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 *
 	 * @var null|string
 	 */
@@ -22,6 +28,9 @@ class Mint_AB_Testing {
 
 	/**
 	 *
+     *
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 *
 	 * @var null|string
 	 */
@@ -29,6 +38,9 @@ class Mint_AB_Testing {
 
 	/**
 	 *
+     *
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 *
 	 * @var null|string
 	 */
@@ -38,49 +50,68 @@ class Mint_AB_Testing {
 	 * Hook into actions and filters here, along with any other global setup
 	 * that needs to run when this plugin is invoked
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
 	 */
 	public function __construct() {
 		$options = Mint_AB_Testing_Options::instance();
 
 		if ( $this->get_can_view_alternate_theme() ) {
-			if ( 'yes' === $options::get_option('use_javascript') ) {
-				add_action('wp_head', array(&$this, 'theme_redirect', 0);
-			}
-
-			// If not using JS theme redirect, and no alternate theme cookie,
-			// then set the alternate theme cookie (this also does the RNG to
-			// determine whether to use the alternate theme).
-			if ( 'no' === $options::get_option('use_javascript') && ! isset($_COOKIE['mint_alternate_theme_' . COOKIEHASH]) ) {
+			if ( ! isset($_COOKIE['mint_alternate_theme_' . COOKIEHASH]) ) {
 				$this->set_theme_cookie();
 			}
 
 			if ( $this->get_use_alternate_theme() ) {
 				add_filter( 'template', array(&$this, 'get_template') );
 				add_filter( 'stylesheet', array(&$this, 'get_stylesheet') );
+
+				add_action( 'template_redirect', array(&$this, 'redirect') );
 			}
+		} else {
+			$this->delete_theme_cookie();
 		}
 	}
 
 	/**
 	 *
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.1 2011-11-13 Gabriel Koen
+	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
+	 */
+	public function redirect() {
+		if ( $this->get_use_alternate_theme() && ! $this->has_endpoint() ) {
+			$options = Mint_AB_Testing_Options::instance();
+
+			$raw_uri = parse_url($_SERVER['REQUEST_URI']);
+			$alternate_theme_uri = $raw_uri['path'];
+			$alternate_theme_uri = trailingslashit($alternate_theme_uri);
+			$alternate_theme_uri .= $options::get_option('endpoint');
+
+			if ( '/' === substr(get_option('permalink_structure'), -1) ) {
+				$alternate_theme_uri = trailingslashit($alternate_theme_uri);
+			}
+
+			if ( isset($raw_uri['query']) ) {
+				$alternate_theme_uri .= '?' . $raw_uri['query'];
+			}
+
+			wp_safe_redirect( $alternate_theme_uri );
+
+			die();
+		}
+	}
+
+	/**
+	 *
+     *
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
 	public function get_can_view_alternate_theme() {
 		if ( is_null($this->_can_view_alternate_theme) ) {
 			$this->_can_view_alternate_theme = false;
 			$options = Mint_AB_Testing_Options::instance();
 			if ( 'yes' === $options::get_option('enable') ) {
-				/*
-				$preview_for = $options::get_option('preview_for');
-				if ( ! empty( $preview_for ) ) {
-					global $user;
-					user_can( $user, $options::$roles[$role] );
-				}
-				*/
 				$this->_can_view_alternate_theme = true;
 			}
 		}
@@ -91,17 +122,14 @@ class Mint_AB_Testing {
 	/**
 	 *
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
 	 */
 	public function get_use_alternate_theme() {
 		if ( is_null($this->_use_alternate_theme) ) {
 			$this->_use_alternate_theme = false;
 			$options = Mint_AB_Testing_Options::instance();
-			// If not using javascript redirect & has the alternate theme cookie set
-			// OR check vs. ratio
-			if ( ( 'no' === $options::get_option('use_javascript') && isset($_COOKIE['mint_alternate_theme_' . COOKIEHASH]) && 'true' === $_COOKIE['mint_alternate_theme_' . COOKIEHASH] )
-				|| ( ! isset($_COOKIE['mint_alternate_theme_' . COOKIEHASH]) && rand(0, 100) <= $options::get_option('ratio') ) ) {
+			if ( $this->has_endpoint() || $this->has_cookie() || $this->won_lottery() ) {
 				$alternate_theme = get_theme( $options::get_option('alternate_theme') );
 				if ( ! is_null($alternate_theme) ) {
 					$this->_use_alternate_theme = true;
@@ -117,11 +145,64 @@ class Mint_AB_Testing {
 	/**
 	 *
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.1 2011-11-13 Gabriel Koen
+	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
+	 */
+	public function has_endpoint() {
+		global $wp_query;
+		$options = Mint_AB_Testing_Options::instance();
+		if ( is_object($wp_query) ) {
+			$endpoint = get_query_var($options::get_option('endpoint'));
+		} else {
+			$endpoint = (bool) strpos($_SERVER['REQUEST_URI'], '/' . $options::get_option('endpoint') . '/');
+		}
+
+		return $endpoint;
+	}
+
+	/**
+	 *
+     *
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
+	 */
+	public function has_cookie() {
+		if ( isset($_COOKIE['mint_alternate_theme_' . COOKIEHASH]) && 'true' === $_COOKIE['mint_alternate_theme_' . COOKIEHASH] ) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 *
+     *
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
+	 */
+	public function won_lottery() {
+		$options = Mint_AB_Testing_Options::instance();
+		if ( ! isset($_COOKIE['mint_alternate_theme_' . COOKIEHASH]) && rand(0, 100) <= $options::get_option('ratio') ) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 *
+     *
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
 	 */
 	public function set_theme_cookie() {
-		$cookie_value = ($this->get_use_alternate_theme()) ? 'true' : 'false';
+		// If there's no cookie yet, and the user is visiting the alternate endpoint,
+		// we can assume they want to be here.  That means they'll likely be switching
+		// back and forth manually, like an admin viewing the A and B themes,
+		// so we don't want to automatically redirect.
+		if ( $this->has_endpoint() ) {
+			$cookie_value = 'false';
+		} else {
+			$cookie_value = ($this->get_use_alternate_theme()) ? 'true' : 'false';
+		}
 
 		$options = Mint_AB_Testing_Options::instance();
 		$cookie_expiry = $options::get_option('cookie_ttl');
@@ -135,8 +216,8 @@ class Mint_AB_Testing {
 	/**
 	 *
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
 	public function delete_theme_cookie() {
 		setcookie( 'mint_alternate_theme_' . COOKIEHASH, 'false', 266165580, COOKIEPATH, COOKIE_DOMAIN );
@@ -145,8 +226,8 @@ class Mint_AB_Testing {
 	/**
 	 *
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
 	public function get_template( $template ) {
 		$template = $this->_theme_template;
@@ -156,83 +237,12 @@ class Mint_AB_Testing {
 	/**
 	 *
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
 	public function get_stylesheet( $stylesheet ) {
 		$stylesheet = $this->_theme_stylesheet;
 		return $stylesheet;
-	}
-
-	/**
-	 *
-	 *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
-	 */
-	public function theme_redirect() {
-		$desktop_domain_parts = explode('.', parse_url(WP_SITEURL, PHP_URL_HOST));
-		$tld = array_pop($desktop_domain_parts);
-		$sld = array_pop($desktop_domain_parts);
-		$desktop_domain = $sld . '.' . $tld;
-
-		// Create the redirect url -- replace www. with m.
-		$redirect_url = str_replace('www.', 'm.', rtrim(home_url(), '/')) . $_SERVER['REQUEST_URI'];
-
-		?><script type="text/javascript">
-		detect_theme_useragent();
-		function detect_theme_useragent() {
-			var theme_cookie_name = "mint_alternate_theme";
-			var theme_cookie_value = "";
-
-			if (document.cookie.length > 0) {
-				cookie_start = document.cookie.indexOf(theme_cookie_name + "=");
-				if (cookie_start != -1) {
-					cookie_start = cookie_start + theme_cookie_name.length + 1;
-					cookie_end = document.cookie.indexOf(";", cookie_start);
-					if (cookie_end == -1) {
-						cookie_end = document.cookie.length;
-					}
-					theme_cookie_value = unescape(document.cookie.substring(cookie_start, cookie_end));
-				}
-			}
-
-			if ( "1" == theme_cookie_value ) {
-				window.parent.location.replace("<?php echo $redirect_url; ?>");
-				return;
-			} else if ( "0" == theme_cookie_value ) {
-				// Will not redirect, cookie already set
-				//console.log("Cookie == 0, will not redirect");
-				return;
-			}
-
-			// Cookie not found
-			var theme_user_agents = ["<?php echo implode('","', $w3_theme->groups['theme']['agents']); ?>"];
-			var current_user_agent = navigator.userAgent.toLowerCase();
-			for (i = 0; i < theme_user_agents.length; i++) {
-				var regex = new RegExp(theme_user_agents[i], 'gi');
-				if ( current_user_agent.match(regex) ) {
-					// Set is_theme cookie
-					var exp_date=new Date();
-					exp_date.setDate(exp_date.getDate() + 365);
-					document.cookie = theme_cookie_name + "=" + escape(1) + ";expires=<?php echo date(DATE_COOKIE, mktime(0, 0, 0, date("n"), date("t"), date("Y")+1)); ?>";
-
-					// Redirect to theme
-					//console.log("Cookie set to 1, will redirect");
-					window.parent.location.replace("<?php echo $redirect_url; ?>");
-					return;
-				}
-			}
-
-			// Set is_theme=0 cookie
-			var exp_date=new Date();
-			exp_date.setDate(exp_date.getDate() + 365);
-			document.cookie = theme_cookie_name + "=" + escape(0) + ";expires=<?php echo date(DATE_COOKIE, mktime(0, 0, 0, date("n"), date("t"), date("Y")+1)); ?>";
-			//console.log("Cookie set to 0, will not redirect");
-			return;
-		}
-		</script><?php
-
 	}
 
 }

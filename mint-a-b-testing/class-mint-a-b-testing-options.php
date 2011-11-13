@@ -2,14 +2,17 @@
 /**
  * Handles get/set of plugin options and WordPress options page
  *
- * @since 0.9 2011-11-05 Gabriel Koen
- * @version 0.9 2011-11-05 Gabriel Koen
+ * @since 0.9.0.0 2011-11-05 Gabriel Koen
+ * @version 0.9.0.1 2011-11-13 Gabriel Koen
  */
 class Mint_AB_Testing_Options
 {
 
 	/**
 	 * String to use for the plugin name.  Used for generating class names, etc.
+     *
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 *
 	 * @var string
 	 */
@@ -17,6 +20,9 @@ class Mint_AB_Testing_Options
 
 	/**
 	 * String to use for the textdomain filename
+     *
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 *
 	 * @var string
 	 */
@@ -24,6 +30,9 @@ class Mint_AB_Testing_Options
 
 	/**
 	 * Name of the option group for WordPress settings API
+     *
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 *
 	 * @var string
 	 */
@@ -31,13 +40,19 @@ class Mint_AB_Testing_Options
 
 	/**
 	 * Name of the option for WordPress settings API
+     *
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 *
 	 * @var string
 	 */
 	public static $option_name = 'mint_a_b_testing_options';
 
 	/**
-	 * Contains default optionss that get overridden in the constructor
+	 * Contains default options that get overridden in the constructor
+     *
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
 	 *
 	 * @var array
 	 */
@@ -46,47 +61,41 @@ class Mint_AB_Testing_Options
 		'ratio' => 50,
 		'alternate_theme' => 'Twenty Ten',
 		'cookie_ttl' => 0,
-		'use_javascript' => 'no',
+		'endpoint' => 'v02',
 	);
 
 	/**
 	 * Contains merged defaults + saved options
 	 *
+     *
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 * @var array
 	 */
 	public static $options = array();
 
 	/**
-	 * Contains default optionss that get overridden in the constructor
-	 *
-	 * @var array
-	public static $roles = array(
-		'administrator' => 'switch_theme',
-		'editor' => 'edit_others_posts',
-		'author' => 'publish_posts',
-		'contributor' => 'edit_posts',
-		'subscriber' => 'read',
-	);
-	 */
-
-
-	/**
 	 * Hook into actions and filters here, along with any other global setup
 	 * that needs to run when this plugin is invoked
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
 	 */
 	private function __construct() {
 		add_action( 'admin_menu', array(&$this,'admin_menu'), 10, 0 );
 		add_action( 'admin_init', array(&$this,'register_settings'), 99, 0 );
+
+		add_action( 'init', array(&$this, 'add_endpoints') );
+		add_filter( 'request', array(&$this, 'request') );
+
 	}
 
     /**
      * Returns Singleton instance of this plugin
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
+     *
      * @return Mint_AB_Testing_Options
      */
     public static function instance()
@@ -104,8 +113,8 @@ class Mint_AB_Testing_Options
 	/**
      * Merge the saved options with the defaults
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
      */
     public static function setup_options() {
 		self::$options = array_merge(self::$options_defaults, get_option( self::$option_name, array() ));
@@ -114,23 +123,25 @@ class Mint_AB_Testing_Options
 	/**
 	 * Add the admin menu page
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
 	public function admin_menu() {
-		add_options_page( __( 'A/B Testing Configuration', self::$text_domain ), __( 'A/B Testing', self::$text_domain ), 'manage_options', self::$plugin_id, array(&$this, 'settings_page') );
+		add_theme_page( __( 'A/B Testing Configuration', self::$text_domain ), __( 'A/B Testing', self::$text_domain ), 'manage_options', self::$plugin_id, array(&$this, 'settings_page') );
 	}
 
 	/**
 	 * Register the plugin settings with the WordPress settings API
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
 	public function register_settings() {
 		register_setting( $this->_option_group, self::$option_name, array(&$this, 'settings_section_validate_main') );
 
 		add_settings_section(self::$plugin_id . '-main', __( 'Main Settings', self::$text_domain ), array(&$this, 'settings_section_description_main'), self::$plugin_id);
+
+		add_settings_field($this->_option_group . '-endpoint', __( '"B" Theme URL Endpoint', self::$text_domain ), array(&$this, 'settings_field_endpoint'), self::$plugin_id, self::$plugin_id . '-main');
 
 		add_settings_field($this->_option_group . '-alternate_theme', __( 'Theme Select', self::$text_domain ), array(&$this, 'settings_field_alternate_theme'), self::$plugin_id, self::$plugin_id . '-main');
 
@@ -138,7 +149,6 @@ class Mint_AB_Testing_Options
 
 		add_settings_field($this->_option_group . '-cookie_ttl', __( '"B" Theme TTL', self::$text_domain ), array(&$this, 'settings_field_cookie_ttl'), self::$plugin_id, self::$plugin_id . '-main');
 
-		add_settings_field($this->_option_group . '-use_javascript', __( 'Use Javascript Theme Redirect', self::$text_domain ), array(&$this, 'settings_field_use_javascript'), self::$plugin_id, self::$plugin_id . '-main');
 
 		add_settings_field($this->_option_group . '-enable', __( 'Enable A/B Testing', self::$text_domain ), array(&$this, 'settings_field_enable'), self::$plugin_id, self::$plugin_id . '-main');
 	}
@@ -146,17 +156,22 @@ class Mint_AB_Testing_Options
 	/**
 	 * Output the description HTML for the "Main" settings section
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
 	public function settings_section_description_main() {
+		$previous_endpoints = self::get_option('used_endpoints');
+		var_dump($previous_endpoints);
+		if ( !empty($previous_endpoints) ) {
+			printf( __( 'The following endpoints have been used before: %s', self::$text_domain ), implode(', ', $previous_endpoints) );
+		}
 	}
 
 	/**
 	 * Output keyword taxonomies settings field(s)
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
 	public function settings_field_enable() {
 		$settings_field_name = 'enable';
@@ -165,31 +180,14 @@ class Mint_AB_Testing_Options
 
 		echo '<label><input name="' . self::$option_name . '[' . $settings_field_name . ']" id="' . $id . '" type="radio" value="yes" ' . checked( ( 'yes' === $enable ), true, false) . '/>&nbsp;' . __( 'On', self::$text_domain ) . '</label><br />';
 		echo '<label><input name="' . self::$option_name . '[' . $settings_field_name . ']" id="' . $id . '" type="radio" value="no" ' . checked( ( 'no' === $enable ), true, false) . '/>&nbsp;' . __( 'Off', self::$text_domain ) . '</label><br />';
-		//echo '<label><input name="' . self::$option_name . '[' . $settings_field_name . ']" id="' . $id . '" type="radio" value="preview" ' . checked( ( 'preview' === $enable ), true, false) . '/>&nbsp;' . __( 'Administrator Preview', self::$text_domain ) . '</label><br />';
 	}
 
-	/**
-	 * Output keyword taxonomies settings field(s)
-     *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
-	 */
-	public function settings_field_use_javascript() {
-		$settings_field_name = 'use_javascript';
-		$use_javascript = self::get_option($settings_field_name);
-		$id = $this->_option_group . '-' . $settings_field_name;
-
-		echo '<label><input name="' . self::$option_name . '[' . $settings_field_name . ']" id="' . $id . '" type="radio" value="yes" ' . checked( ( 'yes' === $use_javascript ), true, false) . '/>&nbsp;' . __( 'Yes, determine the theme clientside', self::$text_domain ) . '</label>';
-		echo ' <span class="description">' . __( 'This will prepend /v2/ when viewing the alternate theme, and redirect alternate theme visitors to that URL via javascript.', self::$text_domain ) . '</span><br />';
-		echo '<label><input name="' . self::$option_name . '[' . $settings_field_name . ']" id="' . $id . '" type="radio" value="no" ' . checked( ( 'no' === $use_javascript ), true, false) . '/>&nbsp;' . __( 'No, determine the theme serverside', self::$text_domain ) . '</label>';
-		echo ' <span class="description">' . __( 'You should select "No" if you are using any kind of caching, unless you know what you are doing.', self::$text_domain ) . '</span><br />';
-	}
 
 	/**
 	 * Output sitemap filename settings field
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
 	public function settings_field_alternate_theme() {
 		$settings_field_name = 'alternate_theme';
@@ -220,8 +218,8 @@ class Mint_AB_Testing_Options
 	/**
 	 * Output sitemap filename settings field
      *
-	 * @since 0.9 2011-05-09 Gabriel Koen
-	 * @version 0.9 2011-05-09 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 * @todo Use jQuery UI slider
 	 */
 	public function settings_field_ratio() {
@@ -237,8 +235,8 @@ class Mint_AB_Testing_Options
 	/**
 	 * Output sitemap filename settings field
      *
-	 * @since 0.9 2011-05-09 Gabriel Koen
-	 * @version 0.9 2011-05-09 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
 	public function settings_field_cookie_ttl() {
 		$settings_field_name = 'cookie_ttl';
@@ -250,12 +248,26 @@ class Mint_AB_Testing_Options
 		echo '<br /><span class="description">' . __( 'Set to "0" to expire at the end of the browser session', self::$text_domain ) . '</span>';
 	}
 
+	/**
+	 *
+     *
+	 * @since 0.9.0.1 2011-11-13 Gabriel Koen
+	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
+	 */
+	public function settings_field_endpoint() {
+		$settings_field_name = 'endpoint';
+		$endpoint = self::get_option($settings_field_name);
+		$id = $this->_option_group . '-' . $settings_field_name;
+
+		echo home_url() . '/<input name="' . self::$option_name . '[' . $settings_field_name . ']" id="' . $id . '" type="text" size="4" value="' . $endpoint . '" />/';
+		echo '<br /><span class="description">' . __( 'This identifies the alternate theme ("B" theme).  Users who visit a URL with this at the end will see the "B" theme.', self::$text_domain ) . '</span>';
+	}
 
 	/**
 	 * Validate the options being saved in the "Main" settings section
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
 	 * @todo Error messages / warnings
 	 */
 	public function settings_section_validate_main($options) {
@@ -281,9 +293,6 @@ class Mint_AB_Testing_Options
 					// Make sure "enable" is one of our valid values
 					$value = (in_array( $value, array( 'yes', 'no', 'preview' ) )) ? $value : 'no';
 					break;
-				case 'use_javascript':
-					$value = ('yes' === $value) ? $value : 'no';
-					break;
 				case 'cookie_ttl':
 					// Make sure ratio is an integer
 					$value = intval($value);
@@ -292,6 +301,17 @@ class Mint_AB_Testing_Options
 					} else {
 						$value = (60 * 60 * 24 * 1);
 					}
+					break;
+				case 'endpoint':
+					// If the endpoint has been changed, reset the endpoints
+					if ( $value !== self::get_option('endpoint') ) {
+						self::set_option('endpoint', $value);
+						$this->add_endpoints();
+						self::activate();
+					}
+					break;
+				case 'used_endpoints':
+					$value = explode(',', $value);
 					break;
 				default:
 					// Do nothing
@@ -306,8 +326,8 @@ class Mint_AB_Testing_Options
 	/**
 	 * Output the settings page
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
 	public function settings_page() {
 		?>
@@ -327,10 +347,58 @@ class Mint_AB_Testing_Options
 	}
 
 	/**
+	 *
+     *
+	 * @since 0.9.0.1 2011-11-13 Gabriel Koen
+	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
+	 */
+	public static function activate() {
+		add_rewrite_endpoint( self::get_option('endpoint'), EP_ALL );
+		flush_rewrite_rules(false);
+	}
+
+
+	/**
+	 *
+     *
+	 * @since 0.9.0.1 2011-11-13 Gabriel Koen
+	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
+	 */
+	public static function deactivate() {
+		flush_rewrite_rules(false);
+	}
+
+	/**
+	 *
+     *
+	 * @since 0.9.0.1 2011-11-13 Gabriel Koen
+	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
+	 */
+	public function add_endpoints() {
+		add_rewrite_endpoint( self::get_option('endpoint'), EP_ALL );
+	}
+
+	/**
+	 *
+     *
+	 * @since 0.9.0.1 2011-11-13 Gabriel Koen
+	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
+	 */
+	public function request( $query_vars ) {
+		if ( isset( $query_vars[self::get_option('endpoint')] ) ) {
+			$query_vars[self::get_option('endpoint')] = true;
+		} else {
+			$query_vars[self::get_option('endpoint')] = false;
+		}
+
+		return $query_vars;
+	}
+
+	/**
 	 * Plugin option getter
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
 	public static function get_option($option_key = '') {
 		if ( empty(self::$options) ) {
@@ -347,8 +415,8 @@ class Mint_AB_Testing_Options
 	/**
 	 * Plugin option setter
      *
-	 * @since 0.9 2011-11-05 Gabriel Koen
-	 * @version 0.9 2011-11-05 Gabriel Koen
+	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
+	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
 	public static function set_option($option_key, $option_value = '') {
 		self::$options[$option_key] = $option_value;
