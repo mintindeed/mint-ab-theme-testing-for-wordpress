@@ -76,23 +76,26 @@ class Mint_AB_Testing {
 	 *
      *
 	 * @since 0.9.0.1 2011-11-13 Gabriel Koen
-	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
+	 * @version 0.9.0.2 2011-11-13 Gabriel Koen
 	 */
 	public function redirect() {
 		if ( $this->get_use_alternate_theme() && ! $this->has_endpoint() ) {
 			$options = Mint_AB_Testing_Options::instance();
-
-			$raw_uri = parse_url($_SERVER['REQUEST_URI']);
-			$alternate_theme_uri = $raw_uri['path'];
-			$alternate_theme_uri = trailingslashit($alternate_theme_uri);
-			$alternate_theme_uri .= $options::get_option('endpoint');
-
-			if ( '/' === substr(get_option('permalink_structure'), -1) ) {
+			if ( '' === get_option('permalink_structure') ) {
+				$alternate_theme_uri = add_query_arg($options::get_option('endpoint'), 'true', $_SERVER['REQUEST_URI']);
+			} else {
+				$raw_uri = parse_url($_SERVER['REQUEST_URI']);
+				$alternate_theme_uri = $raw_uri['path'];
 				$alternate_theme_uri = trailingslashit($alternate_theme_uri);
-			}
+				$alternate_theme_uri .= $options::get_option('endpoint');
 
-			if ( isset($raw_uri['query']) ) {
-				$alternate_theme_uri .= '?' . $raw_uri['query'];
+				if ( '/' === substr(get_option('permalink_structure'), -1) ) {
+					$alternate_theme_uri = trailingslashit($alternate_theme_uri);
+				}
+
+				if ( isset($raw_uri['query']) ) {
+					$alternate_theme_uri .= '?' . $raw_uri['query'];
+				}
 			}
 
 			wp_safe_redirect( $alternate_theme_uri );
@@ -146,13 +149,18 @@ class Mint_AB_Testing {
 	 *
      *
 	 * @since 0.9.0.1 2011-11-13 Gabriel Koen
-	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
+	 * @version 0.9.0.2 2011-11-13 Gabriel Koen
 	 */
 	public function has_endpoint() {
 		global $wp_query;
 		$options = Mint_AB_Testing_Options::instance();
 		if ( is_object($wp_query) ) {
 			$endpoint = get_query_var($options::get_option('endpoint'));
+		} elseif ( '' === get_option('permalink_structure') ) {
+			$endpoint = false;
+			if ( isset($_GET[$options::get_option('endpoint')]) ) {
+				$endpoint = ('true' === $_GET[$options::get_option('endpoint')]) ? true : false;
+			}
 		} else {
 			$endpoint = (bool) strpos($_SERVER['REQUEST_URI'], '/' . $options::get_option('endpoint') . '/');
 		}
