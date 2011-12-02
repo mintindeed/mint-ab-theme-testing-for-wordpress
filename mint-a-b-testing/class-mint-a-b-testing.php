@@ -3,12 +3,12 @@
  * Handles the generation of the A/B Testing
  *
  * @since 0.9.0.0 2011-11-05 Gabriel Koen
- * @version 0.9.0.1 2011-11-13 Gabriel Koen
+ * @version 0.9.0.2 2011-11-13 Gabriel Koen
  */
 class Mint_AB_Testing {
 	/**
 	 *
-     *
+	 *
 	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
 	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 *
@@ -18,7 +18,7 @@ class Mint_AB_Testing {
 
 	/**
 	 *
-     *
+	 *
 	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
 	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 *
@@ -28,7 +28,7 @@ class Mint_AB_Testing {
 
 	/**
 	 *
-     *
+	 *
 	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
 	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 *
@@ -38,7 +38,7 @@ class Mint_AB_Testing {
 
 	/**
 	 *
-     *
+	 *
 	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
 	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 *
@@ -49,7 +49,7 @@ class Mint_AB_Testing {
 	/**
 	 * Hook into actions and filters here, along with any other global setup
 	 * that needs to run when this plugin is invoked
-     *
+	 *
 	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
 	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
 	 */
@@ -74,16 +74,17 @@ class Mint_AB_Testing {
 
 	/**
 	 *
-     *
+	 *
 	 * @since 0.9.0.1 2011-11-13 Gabriel Koen
 	 * @version 0.9.0.2 2011-11-13 Gabriel Koen
 	 */
 	public function redirect() {
 		if ( $this->get_use_alternate_theme() && ! $this->has_endpoint() ) {
 			$options = Mint_AB_Testing_Options::instance();
+			$alternate_theme_uri = $_SERVER['REQUEST_URI'];
 			if ( '' === get_option('permalink_structure') ) {
 				$alternate_theme_uri = add_query_arg($options::get_option('endpoint'), 'true', $_SERVER['REQUEST_URI']);
-			} else {
+			} elseif ( false === strpos($_SERVER['REQUEST_URI'], $options::get_option('endpoint')) ) {
 				$raw_uri = parse_url($_SERVER['REQUEST_URI']);
 				$alternate_theme_uri = $raw_uri['path'];
 				$alternate_theme_uri = trailingslashit($alternate_theme_uri);
@@ -106,7 +107,7 @@ class Mint_AB_Testing {
 
 	/**
 	 *
-     *
+	 *
 	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
 	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
@@ -124,7 +125,7 @@ class Mint_AB_Testing {
 
 	/**
 	 *
-     *
+	 *
 	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
 	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
 	 */
@@ -147,30 +148,18 @@ class Mint_AB_Testing {
 
 	/**
 	 *
-     *
+	 *
 	 * @since 0.9.0.1 2011-11-13 Gabriel Koen
 	 * @version 0.9.0.2 2011-11-13 Gabriel Koen
 	 */
 	public function has_endpoint() {
-		global $wp_query;
 		$options = Mint_AB_Testing_Options::instance();
-		if ( is_object($wp_query) ) {
-			$endpoint = get_query_var($options::get_option('endpoint'));
-		} elseif ( '' === get_option('permalink_structure') ) {
-			$endpoint = false;
-			if ( isset($_GET[$options::get_option('endpoint')]) ) {
-				$endpoint = ('true' === $_GET[$options::get_option('endpoint')]) ? true : false;
-			}
-		} else {
-			$endpoint = (bool) strpos($_SERVER['REQUEST_URI'], '/' . $options::get_option('endpoint') . '/');
-		}
-
-		return $endpoint;
+		return $options->has_endpoint();
 	}
 
 	/**
 	 *
-     *
+	 *
 	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
 	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
 	 */
@@ -183,7 +172,7 @@ class Mint_AB_Testing {
 
 	/**
 	 *
-     *
+	 *
 	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
 	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
 	 */
@@ -197,13 +186,13 @@ class Mint_AB_Testing {
 
 	/**
 	 *
-     *
+	 *
 	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
 	 * @version 0.9.0.1 2011-11-13 Gabriel Koen
 	 */
 	public function set_theme_cookie() {
 		// If there's no cookie yet, and the user is visiting the alternate endpoint,
-		// we can assume they want to be here.  That means they'll likely be switching
+		// we can assume they want to be here.	That means they'll likely be switching
 		// back and forth manually, like an admin viewing the A and B themes,
 		// so we don't want to automatically redirect.
 		if ( $this->has_endpoint() ) {
@@ -223,7 +212,7 @@ class Mint_AB_Testing {
 
 	/**
 	 *
-     *
+	 *
 	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
 	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
@@ -233,7 +222,7 @@ class Mint_AB_Testing {
 
 	/**
 	 *
-     *
+	 *
 	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
 	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */
@@ -244,7 +233,7 @@ class Mint_AB_Testing {
 
 	/**
 	 *
-     *
+	 *
 	 * @since 0.9.0.0 2011-11-05 Gabriel Koen
 	 * @version 0.9.0.0 2011-11-05 Gabriel Koen
 	 */

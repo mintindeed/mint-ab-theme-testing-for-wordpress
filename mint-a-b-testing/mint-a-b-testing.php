@@ -3,7 +3,7 @@
 Plugin Name: Mint A/B Theme Testing for WordPress
 Plugin URI: http://gabrielkoen.com/
 Description: Generates a A/B Testing on the fly.
-Version: 0.9.0.1
+Version: 0.9.0.2
 Author: Gabriel Koen
 Plugin URI: http://gabrielkoen.com/
 License: GPLv2
