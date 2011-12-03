@@ -69,15 +69,21 @@ class Mint_AB_Testing
 		if ( $this->get_can_view_alternate_theme() ) {
 			add_filter( 'request', array(&$this, 'request') );
 
-			if ( ! isset($_COOKIE[Mint_AB_Testing_Options::cookie_name]) ) {
-				$this->set_theme_cookie();
+			if ( defined('WP_CACHE') && WP_CACHE ) {
+				// Caching is enabled so use a javascript redirect
+				add_action( 'wp_head', array(&$this, 'javascript_redirect'), 0 );
+			} else {
+				if ( ! isset($_COOKIE[Mint_AB_Testing_Options::cookie_name]) ) {
+					$this->set_theme_cookie();
+				}
+
+				add_action( 'template_redirect', array(&$this, 'serverside_redirect') );
 			}
+
 
 			if ( $this->get_use_alternate_theme() ) {
 				add_filter( 'template', array(&$this, 'get_template') );
 				add_filter( 'stylesheet', array(&$this, 'get_stylesheet') );
-
-				add_action( 'template_redirect', array(&$this, 'redirect') );
 			}
 		} else {
 			$this->delete_theme_cookie();
@@ -91,35 +97,187 @@ class Mint_AB_Testing
 	 * @since 0.9.0.1
 	 * @version 0.9.0.3
 	 */
-	public function redirect() {
+	public function serverside_redirect() {
 		if ( $this->get_use_alternate_theme() && false === $this->has_endpoint() ) {
-			//if ( defined('WP_CACHE') && WP_CACHE ) {
-				// Caching is enabled so use a javascript redirect
-			//} else {
-				$options = Mint_AB_Testing_Options::instance();
-				$alternate_theme_uri = $_SERVER['REQUEST_URI'];
-				if ( '' === get_option('permalink_structure') ) {
-					$alternate_theme_uri = add_query_arg($options->get_option('endpoint'), 'true', $_SERVER['REQUEST_URI']);
-				} elseif ( false === strpos($_SERVER['REQUEST_URI'], $options->get_option('endpoint')) ) {
-					$raw_uri = parse_url($_SERVER['REQUEST_URI']);
-					$alternate_theme_uri = $raw_uri['path'];
-					$alternate_theme_uri = trailingslashit($alternate_theme_uri);
-					$alternate_theme_uri .= $options->get_option('endpoint');
+			$options = Mint_AB_Testing_Options::instance();
+			$alternate_theme_uri = $_SERVER['REQUEST_URI'];
+			if ( '' === get_option('permalink_structure') ) {
+				$alternate_theme_uri = add_query_arg($options->get_option('endpoint'), 'true', $_SERVER['REQUEST_URI']);
+			} elseif ( false === strpos($_SERVER['REQUEST_URI'], $options->get_option('endpoint')) ) {
+				$raw_uri = parse_url($_SERVER['REQUEST_URI']);
+				$alternate_theme_uri = $raw_uri['path'];
+				$alternate_theme_uri = trailingslashit($alternate_theme_uri);
+				$alternate_theme_uri .= $options->get_option('endpoint');
 
-					if ( '/' === substr(get_option('permalink_structure'), -1) ) {
-						$alternate_theme_uri = trailingslashit($alternate_theme_uri);
+				// @todo Could put some logic here to be smarter about how the endpoint is added to URLs without a trailing slash
+				if ( '/' === substr(get_option('permalink_structure'), -1) ) {
+					$alternate_theme_uri = trailingslashit($alternate_theme_uri);
+				}
+
+				if ( isset($raw_uri['query']) ) {
+					$alternate_theme_uri .= '?' . $raw_uri['query'];
+				}
+			}
+
+			wp_safe_redirect( $alternate_theme_uri );
+
+			die();
+		}
+	}
+
+
+	/**
+	 * Output javascript in the header to test for alternate theme use
+	 *
+	 * @since 0.9.0.3
+	 * @version 0.9.0.3
+	 */
+	public function javascript_redirect() {
+		// If we're already at the endpoint, then there's no need to output the JS
+		if ( $this->has_endpoint() ) {
+			return;
+		}
+
+		$options = Mint_AB_Testing_Options::instance();
+
+		?>
+		<script type="text/javascript">
+		//<![CDATA[
+		var mint_ab_test = {
+			cookie_name: "<?php echo Mint_AB_Testing_Options::cookie_name; ?>",
+			endpoint: "<?php echo $options->get_option('endpoint'); ?>",
+			_has_endpoint: null,
+
+			run: function() {
+				if ( false == this.has_endpoint() && this.use_alternate_theme() ) {
+					this.do_redirect();
+				}
+			},
+
+			do_redirect: function() {
+				<?php
+				if ( '' === get_option('permalink_structure') ) {
+					?>
+
+					var params = document.location.search.substr(1).split('&');
+
+					if ( "" == params ) {
+						document.location.search = "?" + this.endpoint;
+						return;
 					}
 
-					if ( isset($raw_uri['query']) ) {
-						$alternate_theme_uri .= '?' . $raw_uri['query'];
+					params[params.length] = [this.endpoint];
+
+					document.location.search = params.join("&");
+					return;
+					<?php
+				} else {
+					?>
+
+					var current_location = window.location.pathname;
+
+					<?php
+					// Don't need to check if the path ends with a trailing slash because
+					// WP will have redirected us before we even get here.
+					// However, do need to check for a trailing slash so that we can
+					// output the correct redirect path
+					if ( '/' === substr(get_option('permalink_structure'), -1) ) {
+						?>
+
+						var new_location = current_location + this.endpoint + "/";
+						<?php
+					} else {
+						// Permalink doesn't end with a trailing slash, so we'll add a
+						// slash to the current location (so that we can append the
+						// endpoint)
+						// @todo Could put some logic here to be smarter about how the endpoint is added to URLs without a trailing slash
+						?>
+
+						var new_location = current_location + "/" + this.endpoint;
+						<?php
+					}
+					?>
+
+					var new_href = window.location.href.replace(current_location, new_location);
+					window.parent.location.replace(new_href);
+					<?php
+				}
+				?>
+			},
+
+			has_endpoint: function() {
+				if ( null == this._has_endpoint ) {
+				<?php
+				if ( '' === get_option('permalink_structure') ) {
+					?>
+
+					var regex = new RegExp("[\\?&]" + this.endpoint + "(|([\=\?#].*))$");
+					<?php
+				} else {
+					?>
+
+					var regex = new RegExp("\/" + this.endpoint + "\/(|([\?#].*))$");
+					<?php
+				}
+				?>
+
+					this._has_endpoint = regex.test(window.location.href);
+				}
+
+				return this._has_endpoint;
+			},
+
+			has_cookie: function() {
+				if ( document.cookie.length > 0 && document.cookie.indexOf( this.cookie_name + "=" ) > -1 ) {
+					return true;
+				}
+
+				return false;
+			},
+
+			use_alternate_theme: function() {
+				// If there's a cookie set, we don't need to do any logic here, just use
+				// the cookie value
+				if ( document.cookie.length > 0 ) {
+					if ( document.cookie.indexOf( this.cookie_name + "=true" ) > -1 ) {
+						return true;
+					} else if ( document.cookie.indexOf( this.cookie_name + "=false" ) > -1 ) {
+						return false;
 					}
 				}
 
-				wp_safe_redirect( $alternate_theme_uri );
+				var use_alternate_theme = false;
 
-				die();
-			//}
+				if ( false == this.has_endpoint() ) {
+					if ( Math.floor(Math.random()*101) <= <?php echo $options->get_option('ratio'); ?> ) {
+						use_alternate_theme = true;
+					}
+				}
+
+				this.set_cookie( use_alternate_theme, <?php echo $options->get_option('cookie_ttl'); ?> );
+
+				return use_alternate_theme;
+
+			},
+
+			set_cookie: function( value, expiry ) {
+				var expires = "";
+
+				if ( null != expiry && ! isNaN(expiry) && expiry > 0 ) {
+					var expiry_date=new Date();
+					expiry_date.setDate(expiry_date.getDate() + expiry);
+					expires = "; expires=" + expiry_date.toGMTString();
+				}
+
+				document.cookie = this.cookie_name + "=" + value + expires + "; path=<?php echo COOKIEPATH; ?>; domain=<?php echo COOKIE_DOMAIN; ?>";
+			},
 		}
+
+		mint_ab_test.run();
+
+		//]]>
+		</script>
+		<?php
 	}
 
 
