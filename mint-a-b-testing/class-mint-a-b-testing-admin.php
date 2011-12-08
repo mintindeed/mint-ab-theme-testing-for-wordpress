@@ -3,7 +3,7 @@
  * Handles admin pages
  *
  * @since 0.9.0.3
- * @version 0.9.0.3
+ * @version 0.9.0.4
  */
 class Mint_AB_Testing_Admin
 {
@@ -13,12 +13,32 @@ class Mint_AB_Testing_Admin
 	 * that needs to run when this plugin is invoked
 	 *
 	 * @since 0.9.0.3
-	 * @version 0.9.0.3
+	 * @version 0.9.0.4
 	 */
 	public function __construct() {
 		add_action( 'admin_menu', array(&$this,'admin_menu') );
 		add_action( 'admin_init', array(&$this,'register_settings') );
 		add_action( 'generate_rewrite_rules', array(&$this, 'generate_rewrite_rules') );
+
+		// Flush rewrite rules when settings are saved
+		add_action( 'load-appearance_page_' . Mint_AB_Testing_Options::plugin_id, array(&$this, 'maybe_flush_rules') );
+	}
+
+
+	/**
+	 * Flush rewrite rules when settings are saved
+	 *
+	 * @since 0.9.0.4
+	 * @version 0.9.0.4
+	 */
+	public function maybe_flush_rules() {
+		if ( isset($_GET['settings-updated']) && 'true' === $_GET['settings-updated'] ) {
+			global $wp_rewrite;
+
+			$this->generate_rewrite_rules();
+
+			$wp_rewrite->flush_rules(false);
+		}
 	}
 
 
@@ -224,7 +244,7 @@ class Mint_AB_Testing_Admin
 	 * Validate the options being saved in the "Main" settings section
 	 *
 	 * @since 0.9.0.3
-	 * @version 0.9.0.3
+	 * @version 0.9.0.4
 	 *
 	 * @todo Error messages / warnings
 	 * @todo Don't make this an all-in-one function
@@ -257,10 +277,6 @@ class Mint_AB_Testing_Admin
 				case 'enable':
 					// Make sure "enable" is one of our valid values
 					$value = (in_array( $value, array( 'yes', 'no', 'preview' ) )) ? $value : 'no';
-					// Always run "activate" so that the endpoints are present regardless
-					// whether or not the A/B testing is enabled.  This prevents 404s as
-					// long as the plugin stays enabled.
-					$this->activate();
 					break;
 
 				case 'cookie_ttl':
@@ -274,14 +290,6 @@ class Mint_AB_Testing_Admin
 					}
 					break;
 
-				case 'endpoint':
-					// If the endpoint has been changed, reset the endpoints
-					if ( $value !== $options->get_option('endpoint') ) {
-						$options->set_option('endpoint', $value);
-						$this->activate();
-					}
-					break;
-
 				case 'used_endpoints':
 					$value = explode(',', $value);
 					break;
@@ -291,6 +299,7 @@ class Mint_AB_Testing_Admin
 					break;
 			}
 
+			// Reset the options in the current instance
 			$options->set_option($key, $value);
 		}
 
