@@ -3,7 +3,7 @@
  * Handles the generation of the A/B Testing
  *
  * @since 0.9.0.0
- * @version 0.9.0.3
+ * @version 0.9.0.4
  */
 class Mint_AB_Testing
 {
@@ -84,6 +84,7 @@ class Mint_AB_Testing
 			if ( $this->get_use_alternate_theme() ) {
 				add_filter( 'template', array(&$this, 'get_template') );
 				add_filter( 'stylesheet', array(&$this, 'get_stylesheet') );
+				$this->add_endpoint_filters();
 			}
 		} else {
 			$this->delete_theme_cookie();
@@ -94,50 +95,148 @@ class Mint_AB_Testing
 	/**
 	 *
 	 *
+	 * @since 0.9.0.4
+	 * @version 0.9.0.4
+	 */
+	public function add_endpoint_filters() {
+		add_filter( 'the_content', array(&$this, 'rewrite_urls'), 99 );
+		add_filter( 'get_the_excerpt', array(&$this, 'rewrite_urls'), 99 );
+		add_filter( 'get_the_author_url', array(&$this, 'rewrite_urls'), 99 );
+		add_filter( 'wp_nav_menu', array(&$this, 'rewrite_urls'), 99 );
+		add_filter( 'post_link', array(&$this, 'rewrite_urls'), 99 );
+		add_filter( 'widget_text', array(&$this, 'rewrite_urls'), 99 );
+	}
+
+
+	/**
+	 * Parse HTML for
+	 *
+	 * @todo This could be more efficient
+	 *
+	 * @since 0.9.0.4
+	 * @version 0.9.0.4
+	 */
+	public function rewrite_urls( $content ) {
+		// If this is a single URL, we don't need to do anything too complicated
+		if ( preg_match('~^https?://~', $content) ) {
+			$content = $this->add_endpoint_to_url($content);
+			return $content;
+		}
+
+		$relative_content_url = str_replace(home_url(), '', content_url());
+		$pattern = '~href=[\'"]?(/|' . preg_quote(home_url()) . ')((?!' . preg_quote($relative_content_url) . ').)([^\'"<>\s]+)[\'"]?~';
+
+		if ( preg_match_all( $pattern, $content, $matches, PREG_SET_ORDER ) ) {
+			$count = count($matches);
+
+			for ( $i=0; $i < $count; $i++ ) {
+				$find = array_shift($matches[$i]);
+
+				// Short-circuit on feed urls.  Arguably this could be in the
+				// regex pattern.
+				if ( strpos($find, '/feed/') !== false ) {
+					continue;
+				}
+
+				$replace_base = implode( $matches[$i] );
+
+				$replace = $this->add_endpoint_to_url( $replace_base );
+
+				// Create a new replace based on the href pattern in $find
+				$replace = str_replace($replace_base, $replace, $find);
+
+				// Replace the href in $content
+				$content = str_replace($find, $replace, $content);
+			}
+		}
+
+		return $content;
+	}
+
+
+	/**
+	 * Add endpoint to a single URL
+	 *
+	 * @todo This could be more efficient
+	 *
+	 * @since 0.9.0.4
+	 * @version 0.9.0.4
+	 */
+	public function add_endpoint_to_url( $replace_base ) {
+		$options = Mint_AB_Testing_Options::instance();
+
+		$replace_parts = parse_url( $replace_base );
+
+		$replace = '';
+
+		if ( isset($replace_parts['scheme']) && isset($replace_parts['host']) ) {
+			$replace = $replace_parts['scheme'] . '://' . $replace_parts['host'];
+		}
+
+		if ( isset($replace_parts['path']) ) {
+			$replace .= $replace_parts['path'];
+		}
+
+		$replace = trailingslashit( $replace );
+
+		if ( '' === get_option('permalink_structure') ) {
+			if ( isset($replace_parts['query']) ) {
+				$replace .= '?' . $replace_parts['query'];
+			}
+
+			$replace = add_query_arg( $options->get_option('endpoint'), 'true', $replace );
+		} else {
+			$replace .= $options->get_option('endpoint');
+			$replace = trailingslashit( $replace );
+
+			if ( isset($replace_parts['query']) ) {
+				$replace .= '?' . $replace_parts['query'];
+			}
+		}
+
+		if ( isset($replace_parts['fragment']) ) {
+			$replace .= '#' . $replace_parts['fragment'];
+		}
+
+		return $replace;
+	}
+
+
+	/**
+	 * Determine if the redirect is necessary, and then perform the redirect.
+	 *
+	 * Note the serverside redirect and javascript redirect methods are slightly different
+	 * in syntax; the javascript method of has_cookie() is different than the php class
+	 * method has_cookie() for example.
+	 *
 	 * @since 0.9.0.1
-	 * @version 0.9.0.3
+	 * @version 0.9.0.4
 	 */
 	public function serverside_redirect() {
 		if ( $this->get_use_alternate_theme() && false === $this->has_endpoint() ) {
-			$options = Mint_AB_Testing_Options::instance();
-			$alternate_theme_uri = $_SERVER['REQUEST_URI'];
-			if ( '' === get_option('permalink_structure') ) {
-				$alternate_theme_uri = add_query_arg($options->get_option('endpoint'), 'true', $_SERVER['REQUEST_URI']);
-			} elseif ( false === strpos($_SERVER['REQUEST_URI'], $options->get_option('endpoint')) ) {
-				$raw_uri = parse_url($_SERVER['REQUEST_URI']);
-				$alternate_theme_uri = $raw_uri['path'];
-				$alternate_theme_uri = trailingslashit($alternate_theme_uri);
-				$alternate_theme_uri .= $options->get_option('endpoint');
-
-				// @todo Could put some logic here to be smarter about how the endpoint is added to URLs without a trailing slash
-				if ( '/' === substr(get_option('permalink_structure'), -1) ) {
-					$alternate_theme_uri = trailingslashit($alternate_theme_uri);
-				}
-
-				if ( isset($raw_uri['query']) ) {
-					$alternate_theme_uri .= '?' . $raw_uri['query'];
-				}
-			}
+			$alternate_theme_uri = $this->rewrite_urls($_SERVER['REQUEST_URI']);
 
 			wp_safe_redirect( $alternate_theme_uri );
 
 			die();
+		} elseif ( $this->has_endpoint() && isset($_COOKIE[Mint_AB_Testing_Options::cookie_name]) ) {
+			$this->set_theme_cookie();
 		}
 	}
 
 
 	/**
-	 * Output javascript in the header to test for alternate theme use
+	 * Output javascript in the header to test for alternate theme use and redirect to the
+	 * alternate theme, if necessary.
+	 *
+	 * Note the serverside redirect and javascript redirect methods are slightly different
+	 * in syntax; the javascript method of has_cookie() is different than the php class
+	 * method has_cookie() for example.
 	 *
 	 * @since 0.9.0.3
-	 * @version 0.9.0.3
+	 * @version 0.9.0.4
 	 */
 	public function javascript_redirect() {
-		// If we're already at the endpoint, then there's no need to output the JS
-		if ( $this->has_endpoint() ) {
-			return;
-		}
-
 		$options = Mint_AB_Testing_Options::instance();
 
 		?>
@@ -151,6 +250,9 @@ class Mint_AB_Testing
 			run: function() {
 				if ( false == this.has_endpoint() && this.use_alternate_theme() ) {
 					this.do_redirect();
+				} else if ( this.has_endpoint() && false === this.has_cookie() ) {
+					// If the user landed on "B" theme, keep them there
+					this.set_cookie( true, <?php echo $options->get_option('cookie_ttl'); ?> );
 				}
 			},
 
@@ -198,8 +300,7 @@ class Mint_AB_Testing
 					}
 					?>
 
-					var new_href = window.location.href.replace(current_location, new_location);
-					window.parent.location.replace(new_href);
+					window.parent.location.replace(new_location);
 					<?php
 				}
 				?>
@@ -306,7 +407,7 @@ class Mint_AB_Testing
 	 *
 	 *
 	 * @since 0.9.0.0
-	 * @version 0.9.0.3
+	 * @version 0.9.0.4
 	 */
 	public function get_use_alternate_theme() {
 		if ( is_null($this->_use_alternate_theme) ) {
@@ -314,7 +415,8 @@ class Mint_AB_Testing
 
 			$options = Mint_AB_Testing_Options::instance();
 
-			if ( $this->has_endpoint() || $this->has_cookie() || $this->won_lottery() ) {
+			$conditions_met = ($this->has_endpoint() && ($this->has_cookie() || $this->won_lottery()));
+			if ( $this->has_endpoint() || $conditions_met ) {
 				$alternate_theme = get_theme( $options->get_option('alternate_theme') );
 
 				if ( ! is_null($alternate_theme) ) {
@@ -399,15 +501,12 @@ class Mint_AB_Testing
 	 *
 	 *
 	 * @since 0.9.0.0
-	 * @version 0.9.0.3
+	 * @version 0.9.0.4
 	 */
 	public function set_theme_cookie() {
-		// If there's no cookie yet, and the user is visiting the alternate endpoint,
-		// we can assume they want to be here.	That means they'll likely be switching
-		// back and forth manually, like an admin viewing the A and B themes,
-		// so we don't want to automatically redirect.
+		// If the user landed on "B" theme, keep them there
 		if ( $this->has_endpoint() ) {
-			$cookie_value = 'false';
+			$cookie_value = 'true';
 		} else {
 			$cookie_value = ($this->get_use_alternate_theme()) ? 'true' : 'false';
 		}
