@@ -103,8 +103,25 @@ class Mint_AB_Testing
 		add_filter( 'get_the_excerpt', array(&$this, 'rewrite_urls'), 99 );
 		add_filter( 'get_the_author_url', array(&$this, 'rewrite_urls'), 99 );
 		add_filter( 'wp_nav_menu', array(&$this, 'rewrite_urls'), 99 );
-		add_filter( 'post_link', array(&$this, 'rewrite_urls'), 99 );
+
 		add_filter( 'widget_text', array(&$this, 'rewrite_urls'), 99 );
+
+		add_filter( 'post_link', array(&$this, 'rewrite_urls'), 99 );
+		add_filter( 'page_link', array(&$this, 'rewrite_urls'), 99 );
+		add_filter( 'post_type_link', array(&$this, 'rewrite_urls'), 99 );
+		add_filter( 'attachment_link', array(&$this, 'rewrite_urls'), 99 );
+
+		add_filter( 'category_link', array(&$this, 'rewrite_urls'), 99 );
+		add_filter( 'tag_link', array(&$this, 'rewrite_urls'), 99 );
+
+		add_filter( 'day_link', array(&$this, 'rewrite_urls'), 99 );
+		add_filter( 'month_link', array(&$this, 'rewrite_urls'), 99 );
+		add_filter( 'year_link', array(&$this, 'rewrite_urls'), 99 );
+
+		add_filter( 'author_link', array(&$this, 'rewrite_urls'), 99 );
+		add_filter( 'comment_reply_link', array(&$this, 'rewrite_urls'), 99 );
+
+		add_filter( 'get_pagenum_link', array(&$this, 'remove_endpoint_from_url', 99 );
 	}
 
 
@@ -123,8 +140,17 @@ class Mint_AB_Testing
 			return $content;
 		}
 
+		// Get the relative URLs for wp-admin and wp-content, in case they've been changed
 		$relative_content_url = str_replace(home_url(), '', content_url());
-		$pattern = '~href=[\'"]?(/|' . preg_quote(home_url()) . ')((?!' . preg_quote($relative_content_url) . ').)([^\'"<>\s]+)[\'"]?~';
+		$relative_admin_url = str_replace(home_url(), '', get_admin_url());
+
+		// Subpatterns to exclude
+		$exclude_file_extensions = '(?!.*\.([a-z0-9]{2,4}))';
+		$exclude_wp_content = '(?!' . preg_quote($relative_content_url) . ')';
+		$exclude_wp_admin = '(?!' . preg_quote($relative_admin_url) . ')';
+
+		// Build the pattern to match
+		$pattern = '~href=[\'"]?(/|' . preg_quote(home_url()) . ')' . $exclude_wp_content . $exclude_wp_admin . $exclude_file_extensions . '([^\'"<>\s]+)[\'"]?~';
 
 		if ( preg_match_all( $pattern, $content, $matches, PREG_SET_ORDER ) ) {
 			$count = count($matches);
@@ -199,6 +225,25 @@ class Mint_AB_Testing
 		}
 
 		return $replace;
+	}
+
+
+	/**
+	 * Remove endpoint from a single URL
+	 *
+	 * @since 0.9.0.4
+	 * @version 0.9.0.4
+	 */
+	public function remove_endpoint_from_url( $url ) {
+		$options = Mint_AB_Testing_Options::instance();
+
+		if ( '' === get_option('permalink_structure') ) {
+			$url = remove_query_arg( $options->get_option('endpoint'), $url );
+		} else {
+			$url = str_replace('/' . $options->get_option('endpoint'), '', $url);
+		}
+
+		return $url;
 	}
 
 
@@ -308,21 +353,15 @@ class Mint_AB_Testing
 
 			has_endpoint: function() {
 				if ( null == this._has_endpoint ) {
-				<?php
-				if ( '' === get_option('permalink_structure') ) {
-					?>
-
+					// Check for querystring
 					var regex = new RegExp("[\\?&]" + this.endpoint + "(|([\=\?#].*))$");
-					<?php
-				} else {
-					?>
-
-					var regex = new RegExp("\/" + this.endpoint + "\/(|([\?#].*))$");
-					<?php
-				}
-				?>
-
 					this._has_endpoint = regex.test(window.location.href);
+
+					// If no querystring, check in URL
+					if ( false == this._has_endpoint ) {
+						var regex = new RegExp("\/" + this.endpoint + "\/(|([\?#].*))$");
+						this._has_endpoint = regex.test(window.location.href);
+					}
 				}
 
 				return this._has_endpoint;
@@ -449,14 +488,15 @@ class Mint_AB_Testing
 
 			if ( is_object($wp_query) ) {
 				$this->_has_endpoint = (bool)get_query_var($options->get_option('endpoint'));
-			} elseif ( '' === get_option('permalink_structure') ) {
+			} else {
+				// First test if there's the querystring param
 				if ( isset($_GET[$options->get_option('endpoint')]) ) {
 					$this->_has_endpoint = ('true' === $_GET[$options->get_option('endpoint')]) ? true : false;
 				}
-			} else {
-				$endpoint = '/' . $options->get_option('endpoint') . '/';
 
-				if ( $endpoint === $_SERVER['REQUEST_URI'] || strpos($_SERVER['REQUEST_URI'], $endpoint) !== false ) {
+				// If still false, check for presence in URL
+				$endpoint = '/' . $options->get_option('endpoint') . '/';
+				if ( ! $this->_has_endpoint && ( $endpoint === $_SERVER['REQUEST_URI'] || strpos($_SERVER['REQUEST_URI'], $endpoint) !== false ) ) {
 					$this->_has_endpoint = true;
 				}
 			}
