@@ -3,7 +3,7 @@
 Plugin Name: Mint A/B Theme Testing for WordPress
 Plugin URI: http://gabrielkoen.com/
 Description: Generates a A/B Testing on the fly.
-Version: 0.9.0.3
+Version: 0.9.0.5
 Author: Gabriel Koen
 Plugin URI: http://gabrielkoen.com/
 License: GPLv2
@@ -19,9 +19,6 @@ if ( !defined('DOING_AJAX') || !DOING_AJAX ) {
 
 	include_once __DIR__ . '/class-mint-a-b-testing-admin.php';
 	add_action( 'plugins_loaded', 'mint_a_b_testing_admin_loader', 11 );
-
-	register_activation_hook( __FILE__, 'mint_a_b_testing_activate' );
-	register_activation_hook( __FILE__, 'mint_a_b_testing_deactivate' );
 }
 
 
@@ -63,30 +60,5 @@ function mint_a_b_testing_options_loader() {
 	Mint_AB_Testing_Options::instance();
 }
 
-
-/**
- * Run the activation function
- *
- * @since 0.9.0.3
- * @version 0.9.0.3
- */
-function mint_a_b_testing_activate() {
-	$Mint_AB_Testing_Admin = new Mint_AB_Testing_Admin();
-
-	$Mint_AB_Testing_Admin->activate();
-}
-
-
-/**
- * Run the deactivation function
- *
- * @since 0.9.0.3
- * @version 0.9.0.3
- */
-function mint_a_b_testing_deactivate() {
-	$Mint_AB_Testing_Admin = new Mint_AB_Testing_Admin();
-
-	$Mint_AB_Testing_Admin->deactivate();
-}
 
 // EOF

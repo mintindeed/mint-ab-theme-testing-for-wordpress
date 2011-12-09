@@ -3,7 +3,7 @@
  * Handles admin pages
  *
  * @since 0.9.0.3
- * @version 0.9.0.4
+ * @version 0.9.0.5
  */
 class Mint_AB_Testing_Admin
 {
@@ -13,73 +13,11 @@ class Mint_AB_Testing_Admin
 	 * that needs to run when this plugin is invoked
 	 *
 	 * @since 0.9.0.3
-	 * @version 0.9.0.4
+	 * @version 0.9.0.5
 	 */
 	public function __construct() {
 		add_action( 'admin_menu', array(&$this,'admin_menu') );
 		add_action( 'admin_init', array(&$this,'register_settings') );
-		add_action( 'generate_rewrite_rules', array(&$this, 'generate_rewrite_rules') );
-
-		// Flush rewrite rules when settings are saved
-		add_action( 'load-appearance_page_' . Mint_AB_Testing_Options::plugin_id, array(&$this, 'maybe_flush_rules') );
-	}
-
-
-	/**
-	 * Flush rewrite rules when settings are saved
-	 *
-	 * @since 0.9.0.4
-	 * @version 0.9.0.4
-	 */
-	public function maybe_flush_rules() {
-		if ( isset($_GET['settings-updated']) && 'true' === $_GET['settings-updated'] ) {
-			global $wp_rewrite;
-
-			$this->generate_rewrite_rules();
-
-			$wp_rewrite->flush_rules(false);
-		}
-	}
-
-
-	/**
-	 *
-	 *
-	 * @since 0.9.0.3
-	 * @version 0.9.0.3
-	 */
-	public function activate() {
-		global $wp_rewrite;
-
-		$this->generate_rewrite_rules();
-
-		$wp_rewrite->flush_rules(false);
-	}
-
-
-	/**
-	 *
-	 *
-	 * @since 0.9.0.3
-	 * @version 0.9.0.3
-	 */
-	public function deactivate() {
-		global $wp_rewrite;
-
-		$wp_rewrite->flush_rules(false);
-	}
-
-
-	/**
-	 *
-	 *
-	 * @since 0.9.0.3
-	 * @version 0.9.0.3
-	 */
-	public function generate_rewrite_rules() {
-		$options = Mint_AB_Testing_Options::instance();
-
-		add_rewrite_endpoint( $options->get_option('endpoint'), EP_ALL );
 	}
 
 

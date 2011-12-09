@@ -96,7 +96,7 @@ class Mint_AB_Testing
 	 *
 	 *
 	 * @since 0.9.0.4
-	 * @version 0.9.0.4
+	 * @version 0.9.0.5
 	 */
 	public function add_endpoint_filters() {
 		add_filter( 'the_content', array(&$this, 'rewrite_urls'), 99 );
@@ -120,8 +120,6 @@ class Mint_AB_Testing
 
 		add_filter( 'author_link', array(&$this, 'rewrite_urls'), 99 );
 		add_filter( 'comment_reply_link', array(&$this, 'rewrite_urls'), 99 );
-
-		add_filter( 'get_pagenum_link', array(&$this, 'remove_endpoint_from_url', 99 );
 	}
 
 
@@ -186,45 +184,14 @@ class Mint_AB_Testing
 	 * @todo This could be more efficient
 	 *
 	 * @since 0.9.0.4
-	 * @version 0.9.0.4
+	 * @version 0.9.0.5
 	 */
-	public function add_endpoint_to_url( $replace_base ) {
+	public function add_endpoint_to_url( $url ) {
 		$options = Mint_AB_Testing_Options::instance();
 
-		$replace_parts = parse_url( $replace_base );
+		$url = add_query_arg( $options->get_option('endpoint'), '', $url );
 
-		$replace = '';
-
-		if ( isset($replace_parts['scheme']) && isset($replace_parts['host']) ) {
-			$replace = $replace_parts['scheme'] . '://' . $replace_parts['host'];
-		}
-
-		if ( isset($replace_parts['path']) ) {
-			$replace .= $replace_parts['path'];
-		}
-
-		$replace = trailingslashit( $replace );
-
-		if ( '' === get_option('permalink_structure') ) {
-			if ( isset($replace_parts['query']) ) {
-				$replace .= '?' . $replace_parts['query'];
-			}
-
-			$replace = add_query_arg( $options->get_option('endpoint'), 'true', $replace );
-		} else {
-			$replace .= $options->get_option('endpoint');
-			$replace = trailingslashit( $replace );
-
-			if ( isset($replace_parts['query']) ) {
-				$replace .= '?' . $replace_parts['query'];
-			}
-		}
-
-		if ( isset($replace_parts['fragment']) ) {
-			$replace .= '#' . $replace_parts['fragment'];
-		}
-
-		return $replace;
+		return $url;
 	}
 
 
@@ -232,16 +199,12 @@ class Mint_AB_Testing
 	 * Remove endpoint from a single URL
 	 *
 	 * @since 0.9.0.4
-	 * @version 0.9.0.4
+	 * @version 0.9.0.5
 	 */
 	public function remove_endpoint_from_url( $url ) {
 		$options = Mint_AB_Testing_Options::instance();
 
-		if ( '' === get_option('permalink_structure') ) {
-			$url = remove_query_arg( $options->get_option('endpoint'), $url );
-		} else {
-			$url = str_replace('/' . $options->get_option('endpoint'), '', $url);
-		}
+		$url = remove_query_arg( $options->get_option('endpoint'), $url );
 
 		return $url;
 	}
@@ -255,16 +218,16 @@ class Mint_AB_Testing
 	 * method has_cookie() for example.
 	 *
 	 * @since 0.9.0.1
-	 * @version 0.9.0.4
+	 * @version 0.9.0.5
 	 */
 	public function serverside_redirect() {
 		if ( $this->get_use_alternate_theme() && false === $this->has_endpoint() ) {
-			$alternate_theme_uri = $this->rewrite_urls($_SERVER['REQUEST_URI']);
+			$alternate_theme_uri = $this->add_endpoint_to_url($_SERVER['REQUEST_URI']);
 
 			wp_safe_redirect( $alternate_theme_uri );
 
 			die();
-		} elseif ( $this->has_endpoint() && isset($_COOKIE[Mint_AB_Testing_Options::cookie_name]) ) {
+		} elseif ( $this->has_endpoint() && ! isset($_COOKIE[Mint_AB_Testing_Options::cookie_name]) ) {
 			$this->set_theme_cookie();
 		}
 	}
@@ -279,7 +242,7 @@ class Mint_AB_Testing
 	 * method has_cookie() for example.
 	 *
 	 * @since 0.9.0.3
-	 * @version 0.9.0.4
+	 * @version 0.9.0.5
 	 */
 	public function javascript_redirect() {
 		$options = Mint_AB_Testing_Options::instance();
@@ -302,66 +265,24 @@ class Mint_AB_Testing
 			},
 
 			do_redirect: function() {
-				<?php
-				if ( '' === get_option('permalink_structure') ) {
-					?>
+				var params = document.location.search.substr(1).split('&');
 
-					var params = document.location.search.substr(1).split('&');
-
-					if ( "" == params ) {
-						document.location.search = "?" + this.endpoint;
-						return;
-					}
-
-					params[params.length] = [this.endpoint];
-
-					document.location.search = params.join("&");
+				if ( "" == params ) {
+					document.location.search = "?" + this.endpoint;
 					return;
-					<?php
-				} else {
-					?>
-
-					var current_location = window.location.pathname;
-
-					<?php
-					// Don't need to check if the path ends with a trailing slash because
-					// WP will have redirected us before we even get here.
-					// However, do need to check for a trailing slash so that we can
-					// output the correct redirect path
-					if ( '/' === substr(get_option('permalink_structure'), -1) ) {
-						?>
-
-						var new_location = current_location + this.endpoint + "/";
-						<?php
-					} else {
-						// Permalink doesn't end with a trailing slash, so we'll add a
-						// slash to the current location (so that we can append the
-						// endpoint)
-						// @todo Could put some logic here to be smarter about how the endpoint is added to URLs without a trailing slash
-						?>
-
-						var new_location = current_location + "/" + this.endpoint;
-						<?php
-					}
-					?>
-
-					window.parent.location.replace(new_location);
-					<?php
 				}
-				?>
+
+				params[params.length] = [this.endpoint];
+
+				document.location.search = params.join("&");
 			},
 
 			has_endpoint: function() {
 				if ( null == this._has_endpoint ) {
-					// Check for querystring
-					var regex = new RegExp("[\\?&]" + this.endpoint + "(|([\=\?#].*))$");
-					this._has_endpoint = regex.test(window.location.href);
+					// Check for querystring param
+					var regex = new RegExp("[\\?&]" + this.endpoint + "(|([\=\?#&].*))$");
 
-					// If no querystring, check in URL
-					if ( false == this._has_endpoint ) {
-						var regex = new RegExp("\/" + this.endpoint + "\/(|([\?#].*))$");
-						this._has_endpoint = regex.test(window.location.href);
-					}
+					this._has_endpoint = regex.test(window.location.href);
 				}
 
 				return this._has_endpoint;
@@ -474,32 +395,13 @@ class Mint_AB_Testing
 	 *
 	 *
 	 * @since 0.9.0.1
-	 * @version 0.9.0.3
-	 *
-	 * @todo There's gotta be a better way...  (bool)get_query_var(self::get_option('endpoint')) never works because I always have to parse the querystring.  Parsing the request URI seems like the wrong thing to do, but it appears to be a catch 22: if I load the theme after get_query_var is populated, then the "A" theme's template files get loaded with the "B" theme's stylesheet, if I check for the "B" theme endpoint early enough to tell WordPress to load the right template files, then get_query_var isn't populated.
+	 * @version 0.9.0.5
 	 */
 	public function has_endpoint() {
 		if ( false === $this->_has_endpoint ) {
-			global $wp_query;
-
 			$options = Mint_AB_Testing_Options::instance();
 
-			$this->_has_endpoint = false;
-
-			if ( is_object($wp_query) ) {
-				$this->_has_endpoint = (bool)get_query_var($options->get_option('endpoint'));
-			} else {
-				// First test if there's the querystring param
-				if ( isset($_GET[$options->get_option('endpoint')]) ) {
-					$this->_has_endpoint = ('true' === $_GET[$options->get_option('endpoint')]) ? true : false;
-				}
-
-				// If still false, check for presence in URL
-				$endpoint = '/' . $options->get_option('endpoint') . '/';
-				if ( ! $this->_has_endpoint && ( $endpoint === $_SERVER['REQUEST_URI'] || strpos($_SERVER['REQUEST_URI'], $endpoint) !== false ) ) {
-					$this->_has_endpoint = true;
-				}
-			}
+			$this->_has_endpoint = (isset($_GET[$options->get_option('endpoint')])) ? true : false;
 		}
 
 		return $this->_has_endpoint;
