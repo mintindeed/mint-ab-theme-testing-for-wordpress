@@ -133,7 +133,7 @@ class Mint_AB_Testing
 	 */
 	public function rewrite_urls( $content ) {
 		// If this is a single URL, we don't need to do anything too complicated
-		if ( preg_match('~^https?://~', $content) ) {
+		if ( preg_match('~^' . preg_quote(home_url()) . '~', $content) ) {
 			$content = $this->add_endpoint_to_url($content);
 			return $content;
 		}
