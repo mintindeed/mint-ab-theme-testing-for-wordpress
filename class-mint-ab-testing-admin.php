@@ -174,7 +174,7 @@ class Mint_AB_Testing_Admin
 		$id = $options::option_group . '-' . $settings_field_name;
 
 		echo home_url() . '/<input name="' . $options::option_name . '[' . $settings_field_name . ']" id="' . $id . '" type="text" size="4" value="' . $endpoint . '" />/';
-		echo '<br /><span class="description">' . __( 'This identifies the alternate theme ( "B" theme ).	 Users who visit a URL with this at the end will see the "B" theme.', 'mint-ab-testing' ) . '</span>';
+		echo '<br /><span class="description">' . __( 'This identifies the alternate theme ("B" theme).	 Users who visit a URL with this at the end will see the "B" theme.', 'mint-ab-testing' ) . '</span>';
 	}
 
 
