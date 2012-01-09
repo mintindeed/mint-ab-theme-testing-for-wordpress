@@ -111,6 +111,8 @@ class Mint_AB_Testing
 		add_filter( 'post_type_link', array( &$this, 'rewrite_urls' ), 99 );
 		add_filter( 'attachment_link', array( &$this, 'rewrite_urls' ), 99 );
 
+		add_filter( 'get_comments_pagenum_link', array( &$this, 'fix_url_syntax' ), 99 );
+
 		add_filter( 'category_link', array( &$this, 'rewrite_urls' ), 99 );
 		add_filter( 'tag_link', array( &$this, 'rewrite_urls' ), 99 );
 
@@ -120,6 +122,31 @@ class Mint_AB_Testing
 
 		add_filter( 'author_link', array( &$this, 'rewrite_urls' ), 99 );
 		add_filter( 'comment_reply_link', array( &$this, 'rewrite_urls' ), 99 );
+	}
+
+
+	/**
+	 * Fixes mangled URLS
+	 * Example: http://wordpress.local/page-with-comments/?v02/comment-page-1/#comments
+	 * Right now this only applies to get_comments_pagenum_link() and the 'get_comments_pagenum_link' filter; _wp_link_page() doesn't filter its output
+	 *
+	 * @see http://core.trac.wordpress.org/ticket/19493
+	 */
+	public function fix_url_syntax( $url ) {
+		$options = Mint_AB_Testing_Options::instance();
+
+		$mangled_url_check = '/?' . $options->get_option( 'endpoint' ) . '/';
+		if ( false !== strpos( $url, $mangled_url_check ) ) {
+			// We could get complicated here and parse the url and put it back together again, but let's keep it simple unless we have to.  Right now this fixes the one example we know of.
+			$url = str_replace( $mangled_url_check, '/', $url );
+			if ( false !== strpos( $url, '&' ) ) {
+				$url = str_replace('&', '?' . $options->get_option( 'endpoint' ) . '&', $url);
+			} else {
+				$url = add_query_arg( $options->get_option( 'endpoint' ), '', $url );
+			}
+		}
+
+		return $url;
 	}
 
 
