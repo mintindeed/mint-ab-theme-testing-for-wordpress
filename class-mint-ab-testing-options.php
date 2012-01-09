@@ -3,7 +3,7 @@
  * Handles get/set of plugin options and WordPress options page
  *
  * @since 0.9.0.0
- * @version 0.9.0.3
+ * @version 0.9.0.6
  */
 class Mint_AB_Testing_Options
 {
@@ -12,29 +12,18 @@ class Mint_AB_Testing_Options
 	 * String to use for the plugin name.  Used for generating class names, etc.
 	 *
 	 * @since 0.9.0.0
-	 * @version 0.9.0.3
+	 * @version 0.9.0.6
 	 *
 	 * @constant string
 	 */
-	const plugin_id = 'mint-a-b-testing';
-
-
-	/**
-	 * String to use for the textdomain filename
-	 *
-	 * @since 0.9.0.0
-	 * @version 0.9.0.3
-	 *
-	 * @constant string
-	 */
-	const text_domain = 'mint-a-b-testing';
+	const plugin_id = 'mint-ab-testing';
 
 
 	/**
 	 *
 	 *
 	 * @since 0.9.0.3
-	 * @version 0.9.0.3
+	 * @version 0.9.0.6
 	 *
 	 * @constant string
 	 */
@@ -45,29 +34,29 @@ class Mint_AB_Testing_Options
 	 * Name of the option group for WordPress settings API
 	 *
 	 * @since 0.9.0.0
-	 * @version 0.9.0.3
+	 * @version 0.9.0.6
 	 *
 	 * @constant string
 	 */
-	const option_group = 'mint-a-b-testing-group';
+	const option_group = 'mint-ab-testing-group';
 
 
 	/**
 	 * Name of the option for WordPress settings API
 	 *
 	 * @since 0.9.0.0
-	 * @version 0.9.0.3
+	 * @version 0.9.0.6
 	 *
 	 * @constant string
 	 */
-	const option_name = 'mint_a_b_testing_options';
+	const option_name = 'mint_ab_testing_options';
 
 
 	/**
 	 * Contains default options that get overridden in the constructor
 	 *
 	 * @since 0.9.0.0
-	 * @version 0.9.0.3
+	 * @version 0.9.0.6
 	 *
 	 * @var array
 	 */
@@ -85,7 +74,7 @@ class Mint_AB_Testing_Options
 	 *
 	 *
 	 * @since 0.9.0.0
-	 * @version 0.9.0.3
+	 * @version 0.9.0.6
 	 * @var array
 	 */
 	protected $_options = array();
@@ -96,7 +85,7 @@ class Mint_AB_Testing_Options
 	 * that needs to run when this plugin is invoked
 	 *
 	 * @since 0.9.0.0
-	 * @version 0.9.0.3
+	 * @version 0.9.0.6
 	 */
 	public function __construct() {
 		$this->_setup_options();
@@ -107,10 +96,10 @@ class Mint_AB_Testing_Options
 	 * Merge the saved options with the defaults
 	 *
 	 * @since 0.9.0.3
-	 * @version 0.9.0.3
+	 * @version 0.9.0.6
 	 */
 	protected function _setup_options() {
-		$this->_options = array_merge($this->_options_defaults, get_option( self::option_name, array() ));
+		$this->_options = array_merge( $this->_options_defaults, get_option( self::option_name, array() ) );
 	}
 
 
@@ -124,7 +113,7 @@ class Mint_AB_Testing_Options
 	 * rendering settings pages, etc.
 	 *
 	 * @since 0.9.0.0
-	 * @version 0.9.0.3
+	 * @version 0.9.0.6
 	 *
 	 * @return Mint_AB_Testing_Options
 	 */
@@ -132,7 +121,7 @@ class Mint_AB_Testing_Options
 	{
 		static $_instance = null;
 
-		if ( is_null($_instance) ) {
+		if ( is_null( $_instance ) ) {
 			$class = __CLASS__;
 			$_instance = new $class();
 		}
@@ -145,10 +134,10 @@ class Mint_AB_Testing_Options
 	 * Plugin option getter
 	 *
 	 * @since 0.9.0.0
-	 * @version 0.9.0.3
+	 * @version 0.9.0.6
 	 */
-	public function get_option($option_key = '') {
-		if ( isset($this->_options[$option_key]) ) {
+	public function get_option( $option_key = '' ) {
+		if ( isset( $this->_options[$option_key] ) ) {
 			return $this->_options[$option_key];
 		}
 
@@ -160,9 +149,9 @@ class Mint_AB_Testing_Options
 	 * Plugin option setter
 	 *
 	 * @since 0.9.0.0
-	 * @version 0.9.0.3
+	 * @version 0.9.0.6
 	 */
-	public function set_option($option_key, $option_value = '') {
+	public function set_option( $option_key, $option_value = '' ) {
 		$this->_options[$option_key] = $option_value;
 	}
 
