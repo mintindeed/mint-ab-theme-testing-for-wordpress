@@ -3,7 +3,7 @@ Contributors: mintindeed
 Tags: a/b testing, alternate theme
 Requires at least: 3.2
 Tested up to: 3.3.1
-Stable tag: 0.9.0.6
+Stable tag: 0.9.0.7
 
 Do A/B testing for your WordPress site design or layout.
 
@@ -19,6 +19,16 @@ This plugin is for A/B testing your theme, and does not support A/B testing cont
 = Technical notes =
 * *Works with caching.*  Proxy caches and server caches are no problem.  If caching is enabled, the users will be redirected via javascript.
 * *As simple and lightweight as possible.*  This plugin was written and designed for performance-sensitive sites that get millions of pageviews per month.
+
+Pay attention to the following link types in your theme.  Due to a bug in endpoints,
+* Read More link
+* Post pagination (/2012/01/16/post-slug/page/2/)
+* Next/Previous posts link
+* Next/Previous comments page link
+* Comments link
+* Reply to comment link / comment permalink
+
+Endpoints don't currently work with taxonomies.  This has bee fixed in core as of WordPress 3.4.  See http://core.trac.wordpress.org/ticket/19275
 
 == Installation ==
 
@@ -61,7 +71,7 @@ Once the [issue with endpoints](http://core.trac.wordpress.org/ticket/19493) is 
 
 == Changelog ==
 
-= 0.9.0.6 =
+= 0.9.0.7 =
 * Initial release.
 
 == Upgrade Notice ==

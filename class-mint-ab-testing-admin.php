@@ -36,7 +36,7 @@ class Mint_AB_Testing_Admin
 	 * Register the plugin settings with the WordPress settings API
 	 *
 	 * @since 0.9.0.3
-	 * @version 0.9.0.6
+	 * @version 0.9.0.7
 	 */
 	public function register_settings() {
 		register_setting( Mint_AB_Testing_Options::option_group, Mint_AB_Testing_Options::option_name, array( &$this, 'settings_section_validate_main' ) );
@@ -50,6 +50,10 @@ class Mint_AB_Testing_Admin
 		add_settings_field( Mint_AB_Testing_Options::option_group . '-ratio', __( 'Ratio', 'mint-ab-testing' ), array( &$this, 'settings_field_ratio' ), Mint_AB_Testing_Options::plugin_id, Mint_AB_Testing_Options::plugin_id . '-main' );
 
 		add_settings_field( Mint_AB_Testing_Options::option_group . '-cookie_ttl', __( '"B" Theme TTL', 'mint-ab-testing' ), array( &$this, 'settings_field_cookie_ttl' ), Mint_AB_Testing_Options::plugin_id, Mint_AB_Testing_Options::plugin_id . '-main' );
+
+		add_settings_field( Mint_AB_Testing_Options::option_group . '-javascript_redirect', __( 'Javascript Redirect', 'mint-ab-testing' ), array( &$this, 'settings_field_javascript_redirect' ), Mint_AB_Testing_Options::plugin_id, Mint_AB_Testing_Options::plugin_id . '-main' );
+
+		add_settings_field( Mint_AB_Testing_Options::option_group . '-entrypoints', __( 'Entry Points', 'mint-ab-testing' ), array( &$this, 'settings_field_entrypoints' ), Mint_AB_Testing_Options::plugin_id, Mint_AB_Testing_Options::plugin_id . '-main' );
 
 
 		add_settings_field( Mint_AB_Testing_Options::option_group . '-enable', __( 'Enable A/B Testing', 'mint-ab-testing' ), array( &$this, 'settings_field_enable' ), Mint_AB_Testing_Options::plugin_id, Mint_AB_Testing_Options::plugin_id . '-main' );
@@ -139,6 +143,8 @@ class Mint_AB_Testing_Admin
 
 		$field_output = '<input name="' . $options::option_name . '[' . $settings_field_name . ']" id="' . $id . '" type="text" size="4" value="' . $ratio . '" />';
 		printf( __( 'Show the "B" Theme %s%% of the time', 'mint-ab-testing' ), $field_output );
+
+		echo '<br /><span class="description">' . __( 'Visitors will not be redirected from the "B" theme back to the "A" theme.  If a visitor has an "A" theme cookie and lands on a "B" theme URL (e.g., by following a link), they will stay on the "B" theme.  If they later return to the site via the "A" theme they will stay on the "A" theme because they still have their "A" theme cookie.', 'mint-ab-testing' ) . '</span>';
 	}
 
 
@@ -146,7 +152,7 @@ class Mint_AB_Testing_Admin
 	 * Output cookie TTL settings field
 	 *
 	 * @since 0.9.0.3
-	 * @version 0.9.0.6
+	 * @version 0.9.0.7
 	 */
 	public function settings_field_cookie_ttl() {
 		$options = Mint_AB_Testing_Options::instance();
@@ -157,7 +163,87 @@ class Mint_AB_Testing_Admin
 		$field_output = '<input name="' . $options::option_name . '[' . $settings_field_name . ']" id="' . $id . '" type="text" size="3" value="' . $cookie_ttl . '" />';
 		printf( __( 'Visitors who see the "B" Theme will see it for %s days', 'mint-ab-testing' ), $field_output );
 
-		echo '<br /><span class="description">' . __( 'Set to "0" to expire at the end of the browser session', 'mint-ab-testing' ) . '</span>';
+		echo '<br /><span class="description">' . __( 'Set to "0" to expire at the end of the browser session.', 'mint-ab-testing' ) . '</span>';
+	}
+
+
+	/**
+	 * Output javascript redirect settings field(s)
+	 *
+	 * @since 0.9.0.7
+	 * @version 0.9.0.7
+	 */
+	public function settings_field_javascript_redirect() {
+		$options = Mint_AB_Testing_Options::instance();
+		$settings_field_name = 'javascript_redirect';
+		$id = $options::option_group . '-' . $settings_field_name;
+
+		$javascript_redirect = $options->get_option( $settings_field_name );
+
+		echo '<label><input name="' . $options::option_name . '[' . $settings_field_name . ']" id="' . $id . '" type="checkbox" value="1" ' . checked( ( 1 == $javascript_redirect ), true, false ) . '/>&nbsp;' . __( 'Use Javascript to redirect to "B" theme', 'mint-ab-testing' ) . '</label><br />';
+		echo '<span class="description">' . __( 'If your page requests usually get returned from a cache (proxy caching or full page caching) you should enable this.', 'mint-ab-testing' ) . '</span>';
+
+		// Additional help text for handling analytics
+		if ( class_exists('Pmc_Google_Analytics') ) {
+			$additional_help_text = __( 'It looks like you are using the PMC Google Analytics plugin.  Referrer tracking will be handled automatically.', 'mint-ab-testing' );
+		} elseif ( class_exists('Yoast_GA_Plugin_Admin') ) {
+			$additional_help_text = __( 'It looks like you are using the Google Analytics for WordPress plugin.  Referrer tracking will be handled automatically.', 'mint-ab-testing' );
+		} else {
+			$additional_help_text = __( '<br />This plugin will handle this automatically if you are using the <strong>PMC Google Analytics</strong> or <strong>Google Analytics for WordPress</strong> plugin, otherwise you will need to implement this yourself.', 'mint-ab-testing' );
+		}
+		echo '<br /><span class="description">' . sprintf( __( 'Using javascript redirects with an analytics package like Google Analytics or Omniture requires some additional work to properly track referrers.  %s', 'mint-ab-testing' ), $additional_help_text ) . '</span>';
+	}
+
+
+	/**
+	 * Output entry point settings field(s)
+	 *
+	 * @since 0.9.0.7
+	 * @version 0.9.0.7
+	 */
+	public function settings_field_entrypoints() {
+		$options = Mint_AB_Testing_Options::instance();
+		$settings_field_name = 'entrypoints';
+		$id = $options::option_group . '-' . $settings_field_name;
+
+		$entrypoints = $options->get_option( $settings_field_name );
+
+		echo '<div id="' . $id . '">';
+		foreach ( $entrypoints as $entrypoint => $enabled ) {
+			switch ( $entrypoint ) {
+				case 'home':
+					$label = __( 'Home', 'mint-ab-testing' );
+					break;
+
+				case 'singular':
+					$label = __( 'Single pages: Post, Page, Attachment, and single custom post type pages', 'mint-ab-testing' );
+					break;
+
+				case 'archive':
+					$label = __( 'Archive pages: Tag, Category, custom taxonomy, date-based archives, and custom post type archives', 'mint-ab-testing' );
+					break;
+
+				case 'search':
+					$label = __( 'Search results', 'mint-ab-testing' );
+					break;
+
+				case '404':
+					$label = __( '404 Not Found error pages', 'mint-ab-testing' );
+					break;
+
+				default:
+					// No default, has to be specified above
+					$label = '';
+					break;
+
+			}
+			echo '<label><input name="' . $options::option_name . '[' . $settings_field_name . '][' . $entrypoint . ']" id="' . $id . '-' . $entrypoint . '" type="checkbox" value="1" ' . checked( ( 1 == $enabled ), true, false ) . '/>&nbsp;' .$label . '</label><br />';
+		}
+		echo '</div>';
+
+		echo '<a style="cursor: pointer;" onclick="jQuery(\'#' . $id . ' input\').each(function(){ jQuery(this).attr(\'checked\', true); });">' . __( 'Select All', 'mint-ab-testing' ) . '</a> / <a style="cursor: pointer;" onclick="jQuery(\'#' . $id . ' input\').each(function(){ jQuery(this).attr(\'checked\', false); });">' . __( 'Select None', 'mint-ab-testing' ) . '</a><br />';
+
+		echo '<span class="description">' . __( 'Only run the A/B test when landing on one of the page types above.', 'mint-ab-testing' ) . '</span>';
 	}
 
 
@@ -182,7 +268,7 @@ class Mint_AB_Testing_Admin
 	 * Validate the options being saved in the "Main" settings section
 	 *
 	 * @since 0.9.0.3
-	 * @version 0.9.0.6
+	 * @version 0.9.0.7
 	 *
 	 * @todo Error messages / warnings
 	 * @todo Don't make this an all-in-one function
@@ -190,7 +276,7 @@ class Mint_AB_Testing_Admin
 	public function settings_section_validate_main( $saved_options ) {
 		$options = Mint_AB_Testing_Options::instance();
 
-		foreach ( $saved_options as $key => $value ) {
+		foreach ( $saved_options as $key => &$value ) {
 			switch ( $key ) {
 				case 'alternate_theme':
 					// Prevent invalid or nonexistent theme names from being saved
@@ -221,7 +307,7 @@ class Mint_AB_Testing_Admin
 					// Make sure ratio is an integer
 					$value = intval( $value );
 
-					if ( $value < 0 ) {
+					if ( $value < 1 ) {
 						$value = 0;
 					} else {
 						$value = ( 60 * 60 * 24 * 1 );
@@ -230,6 +316,21 @@ class Mint_AB_Testing_Admin
 
 				case 'used_endpoints':
 					$value = explode( ',', $value );
+					break;
+
+				case 'javascript_redirect':
+					$value = intval( $value );
+					break;
+
+				case 'entrypoints':
+					// Only checked (true) settings get POSTed.  Any false/unset entrypoints are not set. So we'll take the defaults, and if it hasn't been POSTed we can safely assume it's false.  Side benefit: we don't have to worry about invalid/unaccounted keys.
+					$entrypoint_defaults = $options->get_option_default( 'entrypoints' );
+					foreach ( $entrypoint_defaults as $entrypoint => &$enabled ) {
+						if ( ! isset( $value[$entrypoint] ) ) {
+							$enabled = false;
+						}
+					}
+					$value = $entrypoint_defaults;
 					break;
 
 				default:

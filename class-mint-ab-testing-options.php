@@ -3,7 +3,7 @@
  * Handles get/set of plugin options and WordPress options page
  *
  * @since 0.9.0.0
- * @version 0.9.0.6
+ * @version 0.9.0.7
  */
 class Mint_AB_Testing_Options
 {
@@ -28,6 +28,17 @@ class Mint_AB_Testing_Options
 	 * @constant string
 	 */
 	const cookie_name = 'mint_alternate_theme';
+
+
+	/**
+	 *
+	 *
+	 * @since 0.9.0.7
+	 * @version 0.9.0.7
+	 *
+	 * @constant string
+	 */
+	const referrer_cookie_name = 'mint_ab_referrer';
 
 
 	/**
@@ -56,7 +67,7 @@ class Mint_AB_Testing_Options
 	 * Contains default options that get overridden in the constructor
 	 *
 	 * @since 0.9.0.0
-	 * @version 0.9.0.6
+	 * @version 0.9.0.7
 	 *
 	 * @var array
 	 */
@@ -66,6 +77,15 @@ class Mint_AB_Testing_Options
 		'alternate_theme' => 'Twenty Ten',
 		'cookie_ttl' => 0,
 		'endpoint' => 'v02',
+		'javascript_redirect' => 0,
+		'entrypoints' => array(
+			'home' => true,
+			'singular' => true, // post, page, attachment, custom post type
+			'archive' => true, // tag, category, custom post type archive, author
+			'search' => true,
+			'404' => true,
+
+		),
 	);
 
 
@@ -127,6 +147,21 @@ class Mint_AB_Testing_Options
 		}
 
 		return $_instance;
+	}
+
+
+	/**
+	 * Get default value
+	 *
+	 * @since 0.9.0.7
+	 * @version 0.9.0.7
+	 */
+	public function get_option_default( $option_key = '' ) {
+		if ( isset( $this->_options_defaults[$option_key] ) ) {
+			return $this->_options_defaults[$option_key];
+		}
+
+		return null;
 	}
 
 

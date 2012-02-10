@@ -3,7 +3,7 @@
  * Handles the generation of the A/B Testing
  *
  * @since 0.9.0.0
- * @version 0.9.0.6
+ * @version 0.9.0.7
  */
 class Mint_AB_Testing
 {
@@ -63,13 +63,14 @@ class Mint_AB_Testing
 	 * that needs to run when this plugin is invoked
 	 *
 	 * @since 0.9.0.0
-	 * @version 0.9.0.6
+	 * @version 0.9.0.7
 	 */
 	public function __construct() {
 		if ( $this->get_can_view_alternate_theme() ) {
 			add_filter( 'request', array( &$this, 'request' ) );
 
-			if ( defined( 'WP_CACHE' ) && WP_CACHE ) {
+			$options = Mint_AB_Testing_Options::instance();
+			if ( $options->get_option( 'javascript_redirect' ) ) {
 				// Caching is enabled so use a javascript redirect
 				add_action( 'wp_head', array( &$this, 'javascript_redirect' ), 0 );
 			} else {
@@ -85,10 +86,74 @@ class Mint_AB_Testing
 				add_filter( 'template', array( &$this, 'get_template' ) );
 				add_filter( 'stylesheet', array( &$this, 'get_stylesheet' ) );
 				$this->add_endpoint_filters();
+				$this->remove_referrer_cookie();
 			}
 		} else {
 			$this->delete_theme_cookie();
 		}
+	}
+
+
+	/**
+	 *
+	 *
+	 * @since 0.9.0.7
+	 * @version 0.9.0.7
+	 */
+	public function remove_referrer_cookie() {
+		$options = Mint_AB_Testing_Options::instance();
+		if ( $options->get_option( 'javascript_redirect' ) ) {
+			if ( class_exists('Pmc_Google_Analytics') ) {
+				add_filter( 'pmc_google_analytics_pre_trackpageview', array(&$this, 'javascript_track_referrer') );
+			} elseif ( class_exists('Yoast_GA_Plugin_Admin') ) {
+				add_filter( 'option_Yoast_Google_Analytics', array(&$this, 'javascript_track_referrer') );
+			}
+		}
+
+	}
+
+
+	/**
+	 * Output a javascript snippet for tracking the referrer.  Used when doing a
+	 * javascript redirect.
+	 *
+	 * @since 0.9.0.7
+	 * @version 0.9.0.7
+	 */
+	public function javascript_track_referrer( $content ) {
+
+		// Check for the referrer cookie
+		// If value is empty then tell Google Analytics to count the current domain as direct traffic, otherwise pass on the referrer value from the previous page
+		$referrer_javascript = '
+
+		var mint_ab_referrer_cookie_name = "' . esc_attr( Mint_AB_Testing_Options::referrer_cookie_name ) . '";
+		var mint_ab_referrer_cookie_value = "";
+		if (document.cookie.length > 0) {
+			var mint_ab_cookie_start = document.cookie.indexOf(mint_ab_referrer_cookie_name + "=");
+			if (mint_ab_cookie_start != -1) {
+				mint_ab_cookie_start = mint_ab_cookie_start + mint_ab_referrer_cookie_name.length + 1;
+				var mint_ab_cookie_end = document.cookie.indexOf(";", mint_ab_cookie_start);
+				if (mint_ab_cookie_end == -1) {
+					mint_ab_cookie_end = document.cookie.length;
+				}
+				mint_ab_referrer_cookie_value = decodeURIComponent(document.cookie.substring(mint_ab_cookie_start, mint_ab_cookie_end));
+				if ( "" == mint_ab_referrer_cookie_value ) {
+					_gaq.push(["_addIgnoredRef", "' . parse_url(home_url(), PHP_URL_HOST) . '"]);
+				} else {
+					_gaq.push(["_setReferrerOverride", mint_ab_referrer_cookie_value]);
+				}
+				document.cookie = mint_ab_referrer_cookie_name + "=; expires=Thu, 01-Jan-1970 00:00:01 GMT; path=' . SITECOOKIEPATH . '; domain=' . COOKIE_DOMAIN . '";
+			}
+		}
+		';
+
+		if ( class_exists('Yoast_GA_Plugin_Admin') ) {
+			$content['customcode'] .= $referrer_javascript;
+		} else {
+			$content .= $referrer_javascript;
+		}
+
+		return $content;
 	}
 
 
@@ -269,7 +334,7 @@ class Mint_AB_Testing
 	 * method has_cookie() for example.
 	 *
 	 * @since 0.9.0.3
-	 * @version 0.9.0.6
+	 * @version 0.9.0.7
 	 */
 	public function javascript_redirect() {
 		$options = Mint_AB_Testing_Options::instance();
@@ -278,17 +343,43 @@ class Mint_AB_Testing
 		<script type="text/javascript">
 		//<![CDATA[
 		var mint_ab_test = {
+			referrer_cookie_name: "<?php echo Mint_AB_Testing_Options::referrer_cookie_name; ?>",
 			cookie_name: "<?php echo Mint_AB_Testing_Options::cookie_name; ?>",
 			endpoint: "<?php echo $options->get_option( 'endpoint' ); ?>",
 			_has_endpoint: null,
+			_is_valid_entrypoint: <?php echo ($this->is_valid_entrypoint() ? 'true' : 'false'); ?>,
 
 			run: function() {
+				// If not a valid entry point, bail early
+				if ( ! this._is_valid_entrypoint ) {
+					if ( false === this.has_cookie() ) {
+						this.set_cookie( false, <?php echo $options->get_option( 'cookie_ttl' ); ?> );
+					}
+					return;
+				}
+
 				if ( false == this.has_endpoint() && this.use_alternate_theme() ) {
+					<?php
+					// Set the referrer cookie if doing a javascript redirect
+					if ( $options->get_option( 'javascript_redirect' ) && ( class_exists('Pmc_Google_Analytics') ||  class_exists('Yoast_GA_Plugin_Admin') ) ) {
+						?>
+						this.set_referrer_cookie();
+						<?php
+					}
+					?>
 					this.do_redirect();
 				} else if ( this.has_endpoint() && false === this.has_cookie() ) {
 					// If the user landed on "B" theme, keep them there
 					this.set_cookie( true, <?php echo $options->get_option( 'cookie_ttl' ); ?> );
 				}
+			},
+
+			set_referrer_cookie: function() {
+				var referrer_value = document.referrer;
+				if ( referrer_value.indexOf("<?php echo site_url(); ?>") > -1 ) {
+					referrer_value = "";
+				}
+				document.cookie = this.referrer_cookie_name + "=" + encodeURIComponent(referrer_value) + "; path=<?php echo SITECOOKIEPATH; ?>; domain=<?php echo COOKIE_DOMAIN; ?>";
 			},
 
 			do_redirect: function() {
@@ -357,7 +448,7 @@ class Mint_AB_Testing
 					expires = "; expires=" + expiry_date.toGMTString();
 				}
 
-				document.cookie = this.cookie_name + "=" + value + expires + "; path=<?php echo COOKIEPATH; ?>; domain=<?php echo COOKIE_DOMAIN; ?>";
+				document.cookie = this.cookie_name + "=" + value + expires + "; path=<?php echo SITECOOKIEPATH; ?>; domain=<?php echo COOKIE_DOMAIN; ?>";
 			},
 		}
 
@@ -421,6 +512,64 @@ class Mint_AB_Testing
 	/**
 	 *
 	 *
+	 * @since 0.9.0.7
+	 * @version 0.9.0.7
+	 */
+	public function is_valid_entrypoint() {
+		// Never show on previews
+		if ( is_preview() ) {
+			return false;
+		}
+
+		$options = Mint_AB_Testing_Options::instance();
+		$entrypoints = $options->get_option( 'entrypoints' );
+		foreach ( $entrypoints as $entrypoint => $enabled ) {
+			switch ( $entrypoint ) {
+				case 'home':
+					if ( $enabled && is_home() ) {
+						return true;
+					}
+					break;
+
+				case 'singular':
+					if ( $enabled && is_singular() ) {
+						return true;
+					}
+					break;
+
+				case 'archive':
+					if ( $enabled && is_archive() ) {
+						return true;
+					}
+					break;
+
+				case 'search':
+					if ( $enabled && is_search() ) {
+						return true;
+					}
+					break;
+
+				case '404':
+					if ( $enabled && is_404() ) {
+						return true;
+					}
+					break;
+
+				default:
+					// No default, has to be specified above
+					break;
+			}
+		}
+
+		// If none of the conditions above took hold, return false because we're not at a specified entrypoint
+		return false;
+
+	}
+
+
+	/**
+	 *
+	 *
 	 * @since 0.9.0.1
 	 * @version 0.9.0.6
 	 */
@@ -470,11 +619,14 @@ class Mint_AB_Testing
 	 *
 	 *
 	 * @since 0.9.0.0
-	 * @version 0.9.0.6
+	 * @version 0.9.0.7
 	 */
 	public function set_theme_cookie() {
+		// If the user doesn't land on a valid entrypoint, keep them on the "A" theme
 		// If the user landed on "B" theme, keep them there
-		if ( $this->has_endpoint() ) {
+		if ( ! $this->is_valid_entrypoint() ) {
+			$cookie_value = 'false';
+		} elseif ( $this->has_endpoint() ) {
 			$cookie_value = 'true';
 		} else {
 			$cookie_value = ( $this->get_use_alternate_theme() ) ? 'true' : 'false';
