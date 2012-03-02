@@ -3,7 +3,7 @@
  * Handles the generation of the A/B Testing
  *
  * @since 0.9.0.0
- * @version 0.9.0.7
+ * @version 0.9.0.8
  */
 class Mint_AB_Testing
 {
@@ -63,7 +63,7 @@ class Mint_AB_Testing
 	 * that needs to run when this plugin is invoked
 	 *
 	 * @since 0.9.0.0
-	 * @version 0.9.0.7
+	 * @version 0.9.0.8
 	 */
 	public function __construct() {
 		if ( $this->get_can_view_alternate_theme() ) {
@@ -87,6 +87,9 @@ class Mint_AB_Testing
 				add_filter( 'stylesheet', array( &$this, 'get_stylesheet' ) );
 				$this->add_endpoint_filters();
 				$this->remove_referrer_cookie();
+			} else {
+				// If we're not on the "B" theme, we should load the "B" theme's functions.php so that ajax calls, sidebars defined in the "B" theme, etc, will all work
+				$this->load_alternate_functions();
 			}
 		} else {
 			$this->delete_theme_cookie();
@@ -652,6 +655,26 @@ class Mint_AB_Testing
 	 */
 	public function delete_theme_cookie() {
 		setcookie( Mint_AB_Testing_Options::cookie_name, 'false', 266165580, COOKIEPATH, COOKIE_DOMAIN );
+	}
+
+
+	/**
+	 * Load alternate theme's functions.php so that ajax calls, sidebars defined in the
+	 * "B" theme, etc, will all work.  This works slightly differently than expected if
+	 * you are loading a child theme: normally a child theme's functions.php is loaded
+	 * before the parent theme's, but we are forced to load it afterwards here because we
+	 * don't have access to any actions before "after_setup_theme" on VIP.
+	 *
+	 * @since 0.9.0.8
+	 * @version 0.9.0.8
+	 */
+	public function load_alternate_functions() {
+		$options = Mint_AB_Testing_Options::instance();
+		$alternate_theme = get_theme( $options->get_option( 'alternate_theme' ) );
+		$alternate_theme_functions_path = $alternate_theme['Stylesheet Dir'] . '/functions.php';
+		if ( file_exists( $alternate_theme_functions_path ) ) {
+			include_once $alternate_theme_functions_path;
+		}
 	}
 
 

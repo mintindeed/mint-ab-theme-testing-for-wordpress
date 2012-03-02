@@ -3,7 +3,7 @@ Contributors: mintindeed
 Tags: a/b testing, alternate theme
 Requires at least: 3.2
 Tested up to: 3.3.1
-Stable tag: 0.9.0.7
+Stable tag: 0.9.0.8
 
 Do A/B testing for your WordPress site design or layout.
 
