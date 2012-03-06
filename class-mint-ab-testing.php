@@ -431,7 +431,7 @@ class Mint_AB_Testing
 				var use_alternate_theme = false;
 
 				if ( false == this.has_endpoint() ) {
-					if ( Math.floor( Math.random()*101 ) <= <?php echo $options->get_option( 'ratio' ); ?> ) {
+					if ( Math.floor( Math.random()*101 ) < <?php echo $options->get_option( 'ratio' ); ?> ) {
 						use_alternate_theme = true;
 					}
 				}
@@ -610,7 +610,7 @@ class Mint_AB_Testing
 	 */
 	public function won_lottery() {
 		$options = Mint_AB_Testing_Options::instance();
-		if ( ! isset( $_COOKIE[Mint_AB_Testing_Options::cookie_name] ) && rand( 0, 100 ) <= $options->get_option( 'ratio' ) ) {
+		if ( ! isset( $_COOKIE[Mint_AB_Testing_Options::cookie_name] ) && rand( 0, 100 ) < $options->get_option( 'ratio' ) ) {
 			return true;
 		}
 
